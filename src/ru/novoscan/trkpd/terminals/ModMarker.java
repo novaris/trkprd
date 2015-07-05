@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -56,10 +58,12 @@ public class ModMarker implements ModConstats {
 
 	private HashMap<String, String> map = new HashMap<String, String>();
 
+	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+
 	public ModMarker(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException {
 		logger.debug("Read streems..");
-		TrackPgUtils.setDateSqlFormat(SQL_DATE_SIMPLE_FORMAT);
 		maxPacketSize = conf.getMaxSize();
 		try {
 			int cread;
@@ -102,7 +106,6 @@ public class ModMarker implements ModConstats {
 						dasnTemp = dasnTemp - 273;
 						map.put("vehicleId", m.group(3));
 						map.put("dasnUid", m.group(3));
-						map.put("dasnDateTime", m.group(4));
 						map.put("dasnLatitude", String.valueOf(dasnLatitude));
 						map.put("dasnLongitude", String.valueOf(dasnLongitude));
 						map.put("dasnStatus", String.valueOf(dasnStatus));
@@ -125,7 +128,7 @@ public class ModMarker implements ModConstats {
 								+ (Float.valueOf(m.group(12)) / ((float) 10.0))
 								+ "</pw><temp>" + dasnTemp + "</temp></xml>");
 						// запись в БД
-						pgcon.setDataSensor(map);
+						pgcon.setDataSensor(map, sdf.parse(m.group(4)));
 						// Ответ блоку
 						try {
 							pgcon.addDataSensor();
@@ -160,8 +163,6 @@ public class ModMarker implements ModConstats {
 			logger.error("Close connection : " + e.getMessage());
 		} catch (IOException e) {
 			logger.warn("IO socket error : " + e.getMessage());
-		} catch (Exception e) {
-			logger.warn("Exception : " + e.getMessage());
 		}
 	}
 

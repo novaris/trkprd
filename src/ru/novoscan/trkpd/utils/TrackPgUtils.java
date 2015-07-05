@@ -88,10 +88,11 @@ public class TrackPgUtils implements ModConstats {
 		this.values = values;
 	}
 
-	public void setDataSensorValues(HashMap<String, String> ds,
+	public void setDataSensorValues(HashMap<String, String> ds, Date date,
 			HashMap<Integer, BigInteger> values) {
 		this.ds = ds;
 		this.values = values;
+		this.dasnDateTime = date;
 	}
 
 	public void addDataSensor() throws SQLException {
@@ -241,10 +242,10 @@ public class TrackPgUtils implements ModConstats {
 						.append(",?::int8")
 						// 2 - идентификатор записи лога
 						.append(",?::timestamp") // 3
-																			// -Дата
-																			// время
-																			// с
-																			// таймзоной
+													// -Дата
+													// время
+													// с
+													// таймзоной
 						.append(",?::float8") // 4 - latitude Географическая
 												// долгота
 						.append(",?::float8") // 5 - longitude Географическая

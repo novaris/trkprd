@@ -38,7 +38,7 @@ public class SubRecord implements ModConstats {
 	}
 
 	public SubRecord() {
-		
+
 	}
 
 	public int getType() {

@@ -79,10 +79,10 @@ public class EgtsTransport implements ModConstats {
 		this.iDs = iDs;
 		parsePacket();
 	}
-	
+
 	public EgtsTransport() {
 	}
-	
+
 	private void parsePacket() throws IOException {
 		setByteCount(0);
 		setPtVersion(readByte());
@@ -345,7 +345,8 @@ public class EgtsTransport implements ModConstats {
 			ptHeader[getByteCount()] = bread;
 		}
 		setByteCount(getByteCount() + 1);
-		logger.debug("byte [" + getByteCount() + "] : " + Integer.toHexString(bread & 0xff));
+		logger.debug("byte [" + getByteCount() + "] : "
+				+ Integer.toHexString(bread & 0xff));
 		return bread & 0xff;
 	}
 

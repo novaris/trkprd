@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -54,6 +56,8 @@ public class ModGnsMinitrack implements ModConstats {
 
 	private String navTime;
 
+	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+
 	private int navStatus;
 
 	private String navSog;
@@ -69,7 +73,8 @@ public class ModGnsMinitrack implements ModConstats {
 	private ModUtils utl = new ModUtils();
 
 	public ModGnsMinitrack(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException {
 		maxPacketSize = conf.getMaxSize();
 		try {
 			String data = "";
@@ -156,7 +161,6 @@ public class ModGnsMinitrack implements ModConstats {
 						 */
 						map.put("vehicleId", IMEI);
 						map.put("dasnUid", IMEI);
-						map.put("dasnDateTime", navDate + navTime);
 						map.put("dasnLatitude", navLatitude);
 						map.put("dasnLongitude", navLongitude);
 						map.put("dasnStatus", String.valueOf(navStatus));
@@ -176,7 +180,8 @@ public class ModGnsMinitrack implements ModConstats {
 								Integer.toString(conf.getModType()));
 						// запись в БД
 						if (navStatus == 1) {
-							pgcon.setDataSensor(map);
+							pgcon.setDataSensor(map,
+									sdf.parse(navDate + navTime));
 							try {
 								pgcon.addDataSensor();
 								logger.debug("Write Database OK");
@@ -217,7 +222,7 @@ public class ModGnsMinitrack implements ModConstats {
 
 	}
 
-	private void parsePacket() {
+	private void parsePacket() throws ParseException {
 
 		if (PatPacket.matcher(packet).matches()) {
 			Matcher m = PatPacket.matcher(packet);
@@ -234,6 +239,7 @@ public class ModGnsMinitrack implements ModConstats {
 				}
 
 				navSog = utl.getSpeed(m.group(7));
+
 			}
 			logger.debug("Packet format correct.");
 		} else {

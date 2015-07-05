@@ -28,6 +28,8 @@ public class ModNavixyM7 implements ModConstats {
 
 	private final DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
 
+	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+
 	// 310000001,20100701180220,121.123456,12.654321,0,233,0,9,2,4.10,1
 	// ид,дата YYYYMMDDHHMMSS
 	// ,Longitude
@@ -105,7 +107,8 @@ public class ModNavixyM7 implements ModConstats {
 	private static TrackPgUtils pgcon;
 
 	public ModNavixyM7(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException {
 		ModNavixyM7.conf = conf;
 		ModNavixyM7.pgcon = pgcon;
 		dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -162,7 +165,7 @@ public class ModNavixyM7 implements ModConstats {
 		}
 	}
 
-	private void parsePacket(int paketLength) {
+	private void parsePacket(int paketLength) throws ParseException {
 		StringBuffer data = new StringBuffer();
 		Date curr = new Date();
 		paketLength = paketLength - 1;
@@ -231,11 +234,10 @@ public class ModNavixyM7 implements ModConstats {
 		return fullreadbytes;
 	}
 
-	private void writeData() {
+	private void writeData() throws ParseException {
 		// Сохраним в БД данные
 		map.put("vehicleId", String.valueOf(navDeviceID));
 		map.put("dasnUid", String.valueOf(navDeviceID));
-		map.put("dasnDateTime", navDateTime);
 		map.put("dasnLatitude", String.valueOf(navLatitude));
 		map.put("dasnLongitude", String.valueOf(navLongitude));
 		map.put("dasnStatus", navDeviceStatus);
@@ -255,7 +257,7 @@ public class ModNavixyM7 implements ModConstats {
 		// БД
 		map.put("dasnXML", "<xml><pw>" + navPower + "</pw><gsm>" + navGsm
 				+ "</gsm></xml>");
-		pgcon.setDataSensor(map);
+		pgcon.setDataSensor(map, sdf.parse(navDateTime));
 		try {
 			pgcon.addDataSensor();
 			logger.debug("Write Database OK");

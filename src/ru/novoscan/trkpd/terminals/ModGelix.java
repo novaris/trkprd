@@ -22,7 +22,7 @@ import ru.novoscan.trkpd.resources.ModConstats;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModGelix  implements ModConstats {
+public class ModGelix implements ModConstats {
 	public static final Pattern pattern = Pattern
 			.compile("(?i)^get id=(\\d+)(&amp;|&)len=(\\d+)(&amp;|&)data=(.*)$");
 

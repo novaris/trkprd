@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.HashMap;
 
 import org.apache.log4j.Logger;
@@ -34,8 +35,6 @@ public class ModEgts implements ModConstats {
 	private int navSatellitesCount;
 
 	private String navDeviceID;
-
-	private String navDateTime;
 
 	private float navLatitude;
 
@@ -86,11 +85,12 @@ public class ModEgts implements ModConstats {
 	private ServiceSubRecordData serviceSubRecordData;
 
 	private SubRecord subRecord;
-	
+
 	private SubRecord subRecordResponse;
-	
 
 	private EgtsResponse egtsResponse;
+
+	private Date navDateTime;
 
 	public int getResponseRecorNumber() {
 		return responseRecordNumber;
@@ -144,23 +144,26 @@ public class ModEgts implements ModConstats {
 							subRecord = serviceSubRecordData.getSubRecord();
 							message = subRecord.dump();
 							debug();
-							message = subRecord.getSubRecordTermIdentity().dump();
+							message = subRecord.getSubRecordTermIdentity()
+									.dump();
 							debug();
-							navDeviceID = subRecord.getSubRecordTermIdentity().getTerminalId();
+							navDeviceID = subRecord.getSubRecordTermIdentity()
+									.getTerminalId();
 							// запись
-							if(subRecordResponse == null) {
+							if (subRecordResponse == null) {
 								subRecordResponse = new SubRecord();
 							}
 						}
 					}
 					if (egtsResponse == null) {
-						egtsResponse  = new EgtsResponse();
-					};
+						egtsResponse = new EgtsResponse();
+					}
+					;
 					egtsResponse.setFramedRpid(egtsTransport.getPtPacketId());
 					egtsResponse.setFramedProcResult(EGTS_PC_OK);
 					egtsResponse.setDataRecordSst(fdSdr.getSrRecordSst());
 					egtsResponse.setDataRecordRst(fdSdr.getSrRecordRst());
-					//oDs.write(egtsResponse.getData());	
+					// oDs.write(egtsResponse.getData());
 				} else {
 					raiseEgts(ptServices.getErrorCode(),
 							ptServices.getErrorMessage());
@@ -209,7 +212,6 @@ public class ModEgts implements ModConstats {
 		// Сохраним в БД данные
 		map.put("vehicleId", String.valueOf(navDeviceID));
 		map.put("dasnUid", String.valueOf(navDeviceID));
-		map.put("dasnDateTime", navDateTime);
 		map.put("dasnLatitude", String.valueOf(navLatitude));
 		map.put("dasnLongitude", String.valueOf(navLongitude));
 		map.put("dasnStatus", Integer.toString(navDeviceStatus));
@@ -227,7 +229,7 @@ public class ModEgts implements ModConstats {
 		map.put("dasnTemp", String.valueOf((int) navAdc1));
 		map.put("i_spmt_id", Integer.toString(this.conf.getModType())); // запись
 																		// в
-		pgcon.setDataSensorValues(map, values);
+		pgcon.setDataSensorValues(map, navDateTime, values);
 		try {
 			pgcon.addDataSensor();
 			logger.debug("Write Database OK");

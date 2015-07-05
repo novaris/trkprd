@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,6 +51,8 @@ public class ModGs implements ModConstats {
 	 */
 	static Logger logger = Logger.getLogger(ModGs.class);
 
+	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+
 	private static final Pattern pattern = Pattern
 			.compile("(?i)(\\d+),(\\d{1,2}),(\\d{1}),(\\d{6}),(\\d{6}),[EW](\\d+\\.{0,1}\\d*),[NS](\\d+\\.{0,1}\\d*),(\\d+\\.{0,1}\\d*),(\\d+\\.{0,1}\\d*),(\\d+\\.{0,1}\\d*),(\\d+\\.{0,1}\\d*),(\\d+\\.{0,1}\\d*)");
 
@@ -71,14 +75,14 @@ public class ModGs implements ModConstats {
 	private ModUtils utl = new ModUtils();
 
 	public ModGs(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException {
 		this.maxPacketSize = conf.getMaxSize();
 		try {
 			int cread;
 			char data;
 			String slog = "";
 			packetSize = 0;
-			TrackPgUtils.setDateSqlFormat(SQL_DATE_SIMPLE_FORMAT);
 			while ((cread = console.read()) != -1) {
 				readbytes = readbytes + 1;
 				packetSize = packetSize + 1;
@@ -107,7 +111,6 @@ public class ModGs implements ModConstats {
 							 */
 							map.put("vehicleId", m.group(1));
 							map.put("dasnUid", m.group(1));
-							map.put("dasnDateTime", m.group(4) + m.group(5));
 							map.put("dasnLatitude", utl.getLL(m.group(7)));
 							map.put("dasnLongitude", utl.getLL(m.group(6)));
 							map.put("dasnStatus", m.group(2));
@@ -127,7 +130,8 @@ public class ModGs implements ModConstats {
 									Integer.toString(conf.getModType()));
 							// запись в БД
 
-							pgcon.setDataSensor(map);
+							pgcon.setDataSensor(map,
+									sdf.parse(m.group(4) + m.group(5)));
 							try {
 								pgcon.addDataSensor();
 								logger.debug("Writing Database : " + slog);

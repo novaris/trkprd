@@ -10,10 +10,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.resources.ModConstats;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
@@ -22,7 +25,7 @@ import ru.novoscan.trkpd.utils.TrackPgUtils;
  * @author kur
  * 
  */
-public class ModUtp5 {
+public class ModUtp5 implements ModConstats {
 
 	private int navDeviceID;
 
@@ -90,8 +93,11 @@ public class ModUtp5 {
 
 	private int navBatt;
 
+	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+
 	public ModUtp5(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException {
 		int cread;
 		packetLength = packetDataLength;
 		packet = new int[packetDataLength * 2]; // пакет с нулевого считается
@@ -171,9 +177,6 @@ public class ModUtp5 {
 										Integer.toString(navDeviceID));
 								map.put("dasnUid",
 										Integer.toString(navDeviceID));
-								map.put("dasnDateTime",
-										utl.formatDate((int) navDate)
-												+ utl.cTime((int) navTime));
 								map.put("dasnLatitude",
 										String.valueOf(navLatitude));
 								map.put("dasnLongitude",
@@ -200,7 +203,10 @@ public class ModUtp5 {
 										+ "</pw></xml>");
 								// запись в БД
 
-								pgcon.setDataSensor(map);
+								pgcon.setDataSensor(
+										map,
+										sdf.parse(utl.formatDate((int) navDate)
+												+ utl.cTime((int) navTime)));
 								try {
 									pgcon.addDataSensor();
 									logger.debug("Write Database OK");

@@ -193,13 +193,15 @@ public class SubRecordTermIdentity implements ModConstats {
 		dump.setLength(0);
 		dump.append("Dump of Terminal Identity").append("\nTID\t\t: ")
 				.append(getTerminalId()).append("\nFlags\t\t: ")
-				.append(Integer.toBinaryString(getFlags())).append("\nHDID\t\t: ")
-				.append(getHomeDispatcherId()).append("\nIMEI\t\t: ")
-				.append(getImei()).append("\nIMSI\t\t: ").append(getImsi())
-				.append("\nLNGC\t\t: ").append(getLangCode()).append("\nNID\t\t: 0x")
-				.append(Integer.toHexString(getNetworkId())).append("\nBS\t\t: ")
-				.append(getBufferSize()).append("\nMSISDN\t\t: ")
-				.append(getMsisdn()).append("\n");
+				.append(Integer.toBinaryString(getFlags()))
+				.append("\nHDID\t\t: ").append(getHomeDispatcherId())
+				.append("\nIMEI\t\t: ").append(getImei())
+				.append("\nIMSI\t\t: ").append(getImsi())
+				.append("\nLNGC\t\t: ").append(getLangCode())
+				.append("\nNID\t\t: 0x")
+				.append(Integer.toHexString(getNetworkId()))
+				.append("\nBS\t\t: ").append(getBufferSize())
+				.append("\nMSISDN\t\t: ").append(getMsisdn()).append("\n");
 		return dump;
 	}
 
@@ -273,8 +275,9 @@ public class SubRecordTermIdentity implements ModConstats {
 		this.imsi = "";
 		this.langCode = "";
 		this.msisdn = "";
-		setTerminalId(String.valueOf((data.get(0) & 0xff) + ((data.get(1) & 0xff) << 8)
-				+ ((data.get(2) & 0xff) << 16) + ((data.get(3) & 0xff) << 24)));
+		setTerminalId(String.valueOf((data.get(0) & 0xff)
+				+ ((data.get(1) & 0xff) << 8) + ((data.get(2) & 0xff) << 16)
+				+ ((data.get(3) & 0xff) << 24)));
 		if (isPreHomeDispatcherIdentifier()) {
 			setHomeDispatcherId(data.get(5) + (data.get(6) << 8));
 		}

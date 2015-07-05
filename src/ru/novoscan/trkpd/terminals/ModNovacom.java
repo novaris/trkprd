@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,6 +21,8 @@ public class ModNovacom {
 	static Logger logger = Logger.getLogger(ModNovacom.class);
 
 	private int readbytes = 0;
+
+	private final SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
 
 	// private static String tailSymbol = "$";
 
@@ -595,8 +598,6 @@ public class ModNovacom {
 		try {
 			String data = "";
 			int cread;
-			TrackPgUtils.setDateSqlFormat("YYYYMMDDHH24MISS");
-
 			// Получение от устройства CIO;
 			readbytes = 0;
 			data = "";
@@ -641,7 +642,7 @@ public class ModNovacom {
 						map.put("dasnXML", navXML);
 						// запись в БД
 
-						pgcon.setDataSensor(map);
+						pgcon.setDataSensor(map, sdf.parse(navDateTime));
 						try {
 							pgcon.addDataSensor();
 							logger.debug("Write Database OK");

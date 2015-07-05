@@ -9,6 +9,9 @@ import java.io.PrintWriter;
 import java.io.StringReader;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.regex.Pattern;
 
@@ -21,12 +24,13 @@ import javax.xml.xpath.*;
 
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.resources.ModConstats;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 
-public class ModXml {
+public class ModXml implements ModConstats {
 	static Logger logger = Logger.getLogger(ModXml.class);
 
 	private static final Pattern rquit = Pattern.compile("^(?im)quit$");
@@ -35,12 +39,17 @@ public class ModXml {
 
 	private float fullreadbytes = 0;
 
+	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+
 	private HashMap<String, String> map = new HashMap<String, String>();
+
+	private Date date = new Date();
 
 	// private TRKUtils utl = new TRKUtils();
 
 	public ModXml(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException {
 		String slog = "";
 		BufferedReader binstream = new BufferedReader(
 				new InputStreamReader(iDs));
@@ -93,7 +102,8 @@ public class ModXml {
 
 	private void parsePacket(ModConfig conf, TrackPgUtils pgcon,
 			InputSource xmldata) throws SAXException, IOException,
-			ParserConfigurationException, XPathExpressionException {
+			ParserConfigurationException, XPathExpressionException,
+			ParseException {
 		// разбор пакета
 		logger.debug("Parse Packets");
 		//
@@ -139,7 +149,7 @@ public class ModXml {
 					map.put("i_spmt_id", Integer.toString(conf.getModType()));
 					map.put("dasnMacroId", null);
 					map.put("dasnMacroSrc", null);
-					pgcon.setDataSensor(map);
+					pgcon.setDataSensor(map, date);
 					try {
 						pgcon.addDataSensor();
 						logger.debug("Write Database OK");
@@ -156,8 +166,7 @@ public class ModXml {
 				map.put("vehicleId", StringEscapeUtils.unescapeHtml4(nodeValue));
 				map.put("dasnUid", StringEscapeUtils.unescapeHtml4(nodeValue));
 			} else if (nodeName == "dt") {
-				map.put("dasnDateTime",
-						StringEscapeUtils.unescapeHtml4(nodeValue));
+				date = sdf.parse(StringEscapeUtils.unescapeHtml4(nodeValue));
 			} else if (nodeName == "lat") {
 				map.put("dasnLatitude",
 						StringEscapeUtils.unescapeHtml4(nodeValue));
@@ -199,7 +208,7 @@ public class ModXml {
 			map.put("i_spmt_id", Integer.toString(conf.getModType()));
 			map.put("dasnMacroId", null);
 			map.put("dasnMacroSrc", null);
-			pgcon.setDataSensor(map);
+			pgcon.setDataSensor(map, date);
 			try {
 				pgcon.addDataSensor();
 				logger.debug("Write Database OK");

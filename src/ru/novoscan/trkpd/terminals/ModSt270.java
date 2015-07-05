@@ -6,12 +6,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.resources.ModConstats;
 import ru.novoscan.trkpd.utils.ModConfig;
 //import ru.novoscan.trkpd.utils.TRKUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
@@ -24,7 +27,7 @@ import ru.novoscan.trkpd.utils.TrackPgUtils;
  * @author Kurensky A. Evgeny
  * 
  */
-public class ModSt270 {
+public class ModSt270 implements ModConstats {
 	// ST270STT;111111;031;20110907;07:21:54;06400;+37.479616;+126.886183;000.000;000.00;6;8;1;71.7;0;0;36;9.70;1000000000;0;0;
 	// 0;0;0;0.00;0.00;2;00072
 	// ST270STT;216314;032;20120310;08:33:49;983c08;+54.996794;+082.832318;000.000;000.00;5;4;1;58.2;0;0;235339;11.70;0000000000;0;0;0;0;0;0.00;0.00;1;09381
@@ -71,11 +74,13 @@ public class ModSt270 {
 
 	private HashMap<String, String> map = new HashMap<String, String>();
 
+	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
+
 	// private TRKUtils utl = new TRKUtils();
 
 	public ModSt270(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon) {
-		TrackPgUtils.setDateSqlFormat("YYYYMMDDHH24:MI:SS");
+			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException {
 		maxPacketSize = conf.getMaxSize();
 		try {
 			int cread;
@@ -102,7 +107,6 @@ public class ModSt270 {
 						 */
 						map.put("vehicleId", m.group(2));
 						map.put("dasnUid", m.group(2));
-						map.put("dasnDateTime", m.group(4) + m.group(5));
 						map.put("dasnLatitude", m.group(7));
 						map.put("dasnLongitude", m.group(8));
 						map.put("dasnStatus", m.group(13));
@@ -124,7 +128,8 @@ public class ModSt270 {
 								+ "</gl></xml>");
 						// запись в БД
 
-						pgcon.setDataSensor(map);
+						pgcon.setDataSensor(map,
+								sdf.parse(m.group(4) + m.group(5)));
 						try {
 							pgcon.addDataSensor();
 							logger.debug("Writing Database : " + slog);

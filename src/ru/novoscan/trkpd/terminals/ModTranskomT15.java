@@ -3,17 +3,19 @@ package ru.novoscan.trkpd.terminals;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.resources.ModConstats;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModTranskomT15 {
+public class ModTranskomT15 implements ModConstats {
 	static Logger logger = Logger.getLogger(ModTranskomT15.class);
 
 	/*
@@ -24,6 +26,8 @@ public class ModTranskomT15 {
 	 * число, км/ч course курс, целое число, градусы height высота, целое число,
 	 * в метрах sats количество спутников, целое число
 	 */
+	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+
 	private static final Pattern patternTranskomT15 = Pattern.compile(
 			"^(\\d{15})" // IMEI 1
 					+ "#SD#" + "(\\d{6})" // DDMMYY - дата 2
@@ -88,7 +92,6 @@ public class ModTranskomT15 {
 				}
 				map.put("vehicleId", m.group(1));
 				map.put("dasnUid", m.group(1));
-				map.put("dasnDateTime", m.group(2) + m.group(3));
 				map.put("dasnLatitude", String.valueOf(dasnLatitude));
 				map.put("dasnLongitude", String.valueOf(dasnLongitude));
 				map.put("dasnStatus", String.valueOf(dasnStatus));
@@ -105,9 +108,7 @@ public class ModTranskomT15 {
 				map.put("dasnAdc", null);
 				map.put("dasnTemp", null);
 				map.put("i_spmt_id", Integer.toString(conf.getModType()));
-				pgcon.setDataSensor(map);
-				// запись в БД
-				pgcon.setDataSensor(map);
+				pgcon.setDataSensor(map, sdf.parse(m.group(2) + m.group(3)));
 				// Ответ блоку
 				try {
 					pgcon.addDataSensor();

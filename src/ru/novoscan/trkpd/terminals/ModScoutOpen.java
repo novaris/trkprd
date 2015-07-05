@@ -7,6 +7,8 @@ import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -25,6 +27,8 @@ public class ModScoutOpen implements ModConstats {
 	private float fullreadbytes;
 
 	private HashMap<String, String> map = new HashMap<String, String>();
+
+	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
 
 	private final static int readOK = 0x55;
 
@@ -81,7 +85,6 @@ public class ModScoutOpen implements ModConstats {
 		logger.debug("Read streems..");
 		fullreadbytes = 0;
 		readbytes = 0;
-		TrackPgUtils.setDateSqlFormat(SQL_DATE_FORMAT);
 		try {
 			while (true) {
 				int packetCount = 0;
@@ -245,11 +248,10 @@ public class ModScoutOpen implements ModConstats {
 		return cread;
 	}
 
-	private void writeData() throws IOException {
+	private void writeData() throws IOException, ParseException {
 		// Сохраним в БД данные
 		map.put("vehicleId", String.valueOf(navDeviceID));
 		map.put("dasnUid", String.valueOf(navDeviceID));
-		map.put("dasnDateTime", navDateTime);
 		map.put("dasnLatitude", String.valueOf(navLatitude));
 		map.put("dasnLongitude", String.valueOf(navLongitude));
 		map.put("dasnStatus", Integer.toString(navDeviceStatus));
@@ -267,7 +269,7 @@ public class ModScoutOpen implements ModConstats {
 		map.put("dasnTemp", String.valueOf((int) navAdc1));
 		map.put("i_spmt_id", Integer.toString(this.conf.getModType())); // запись
 																		// в
-		pgcon.setDataSensorValues(map, values);
+		pgcon.setDataSensorValues(map, sdf.parse(navDateTime), values);
 		try {
 			pgcon.addDataSensor();
 			logger.debug("Write Database OK");

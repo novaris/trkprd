@@ -6,10 +6,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.resources.ModConstats;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
@@ -18,7 +21,7 @@ import ru.novoscan.trkpd.utils.TrackPgUtils;
  * @author kur
  * 
  */
-public class ModSignal {
+public class ModSignal implements ModConstats {
 	private static int[] navDeviceID = new int[4];
 
 	private static int[] navServerID = new int[4];
@@ -166,8 +169,11 @@ public class ModSignal {
 
 	private final TrackPgUtils pgcon;
 
+	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+
 	public ModSignal(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException {
 		// int cread;
 		this.conf = conf;
 		this.pgcon = pgcon;
@@ -291,7 +297,7 @@ public class ModSignal {
 		}
 	}
 
-	private void parseDataTypeA() throws IOException {
+	private void parseDataTypeA() throws IOException, ParseException {
 		logger.debug("Пакеты из энергозависимой памяти.");
 		dataBlockCount = 0;
 		setPacketCount();
@@ -739,11 +745,10 @@ public class ModSignal {
 		return fullreadbytes;
 	}
 
-	private void writeData() {
+	private void writeData() throws ParseException {
 		// Сохраним в БД данные
 		map.put("vehicleId", String.valueOf(ModUtils.getIntByte(navDeviceID)));
 		map.put("dasnUid", String.valueOf(ModUtils.getIntByte(navDeviceID)));
-		map.put("dasnDateTime", navDateTime);
 		map.put("dasnLatitude", String.valueOf(navLatitude));
 		map.put("dasnLongitude", String.valueOf(navLongitude));
 		map.put("dasnStatus", Integer.toString(navDeviceStatus));
@@ -765,7 +770,7 @@ public class ModSignal {
 		map.put("dasnXML", "<xml><gl>" + navSatellitesType + "</gl><pw1>"
 				+ navPower + "</pw1><dt>" + navDateTimeFixed + "</dt><pw>"
 				+ navPowerReserv + "</pw></xml>");
-		pgcon.setDataSensor(map);
+		pgcon.setDataSensor(map, sdf.parse(navDateTime));
 		try {
 			pgcon.addDataSensor();
 			logger.debug("Write Database OK");

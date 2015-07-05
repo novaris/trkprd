@@ -6,10 +6,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.resources.ModConstats;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
@@ -18,7 +21,7 @@ import ru.novoscan.trkpd.utils.TrackPgUtils;
  * @author kur
  * 
  */
-public class ModMajak {
+public class ModMajak implements ModConstats {
 	private String navDeviceID;
 
 	// private int navPacketSize;
@@ -83,8 +86,11 @@ public class ModMajak {
 
 	private int packetCount;
 
+	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+
 	public ModMajak(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException {
 		int cread;
 		logger.debug("Read data..");
 		packet = new int[packetDataLength]; // пакет с нулевого считается
@@ -197,7 +203,6 @@ public class ModMajak {
 					// Сохраним в БД данные
 					map.put("vehicleId", navDeviceID);
 					map.put("dasnUid", navDeviceID);
-					map.put("dasnDateTime", navDateTime);
 					map.put("dasnLatitude", String.valueOf(navLatitude));
 					map.put("dasnLongitude", String.valueOf(navLongitude));
 					map.put("dasnStatus", Integer.toString(navDeviceStatus));
@@ -215,7 +220,7 @@ public class ModMajak {
 					map.put("dasnTemp", String.valueOf(navTemp));
 					map.put("i_spmt_id", Integer.toString(conf.getModType()));
 					// запись в БД
-					pgcon.setDataSensor(map);
+					pgcon.setDataSensor(map, sdf.parse(navDateTime));
 					try {
 						pgcon.addDataSensor();
 						logger.debug("Write Database OK");

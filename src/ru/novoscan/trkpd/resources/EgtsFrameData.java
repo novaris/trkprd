@@ -2,7 +2,6 @@ package ru.novoscan.trkpd.resources;
 
 import java.util.ArrayList;
 
-
 public class EgtsFrameData implements ModConstats {
 
 	private int fdRpid;
@@ -67,7 +66,7 @@ public class EgtsFrameData implements ModConstats {
 	}
 
 	public EgtsFrameData() {
-		
+
 	}
 
 	public void clear() {

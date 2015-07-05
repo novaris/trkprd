@@ -8,6 +8,7 @@ import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -105,8 +106,8 @@ public class ModNavis implements ModConstats {
 	}
 
 	public ModNavis(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon) {
-		TrackPgUtils.setDateSqlFormat(SQL_DATE_FORMAT);
+			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException {
 		dfIMEI.setMaximumIntegerDigits(15);
 		dfIMEI.setMinimumIntegerDigits(15);
 		dfIMEI.setGroupingSize(15);
@@ -168,7 +169,6 @@ public class ModNavis implements ModConstats {
 								map.clear();
 								map.put("vehicleId", navIMEI);
 								map.put("dasnUid", navIMEI);
-								map.put("dasnDateTime", navDateTime);
 								map.put("dasnLatitude",
 										String.valueOf(navLatitude));
 								map.put("dasnLongitude",
@@ -193,7 +193,7 @@ public class ModNavis implements ModConstats {
 								map.put("dasnXML", "<xml><i>" + navData
 										+ "</i></xml>");
 								// запись в БД
-								pgcon.setDataSensor(map);
+								pgcon.setDataSensor(map, df.parse(navDateTime));
 								// Ответ блоку
 								try {
 									pgcon.addDataSensor();
@@ -213,8 +213,6 @@ public class ModNavis implements ModConstats {
 			logger.error("Close connection : " + e.getMessage());
 		} catch (IOException e) {
 			logger.warn("IO socket error : " + e.getMessage());
-		} catch (Exception e) {
-			logger.warn("Ошибка : " + e.getMessage());
 		}
 	}
 

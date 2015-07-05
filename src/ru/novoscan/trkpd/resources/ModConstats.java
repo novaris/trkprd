@@ -49,10 +49,10 @@ public interface ModConstats {
 
 	public final static TimeZone TIME_ZONE = TimeZone.getTimeZone("UTC");
 
-	public static final String DATE_FORMAT = "yyyyMMddHH:mm:ss.SSS";
-	
+	public static final String DATE_FORMAT = "yyyyMMddHH:mm:ss";
+
 	public static final String SQL_DATE_SIMPLE_FORMAT = "DDMMYYHH24MISS";
-	
+
 	public static final String DATE_SIMPLE_FORMAT = "ddMMyyHHmmss";
 
 	public final static long TICKS_AT_EPOCH = 621355968000000000L;

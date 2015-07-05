@@ -72,8 +72,6 @@ public class ModTeltonikaFm implements ModConstats {
 
 	private int avlCodecId;
 
-	private String navDateTime;
-
 	private String navPriority;
 
 	private int navHgeo;
@@ -92,13 +90,10 @@ public class ModTeltonikaFm implements ModConstats {
 
 	private HashMap<Integer, BigInteger> values = new HashMap<>();
 
-	private final ModUtils utils = new ModUtils();
-
 	public ModTeltonikaFm(DatagramPacket dataPacket,
 			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon) {
 		this.conf = conf;
 		this.pgcon = pgcon;
-		TrackPgUtils.setDateSqlFormat(SQL_DATE_FORMAT);
 		this.dataPacket = dataPacket;
 		this.clientSocket = clientSocket;
 		logger.debug("Чтение потока..");
@@ -164,7 +159,6 @@ public class ModTeltonikaFm implements ModConstats {
 				if (navDeviceStatus == 1) {
 					map.put("vehicleId", navIMEI);
 					map.put("dasnUid", navIMEI);
-					map.put("dasnDateTime", navDateTime);
 					map.put("dasnLatitude", String.valueOf(navLatitude));
 					map.put("dasnLongitude", String.valueOf(navLongitude));
 					map.put("dasnStatus", String.valueOf(navDeviceStatus));
@@ -184,7 +178,7 @@ public class ModTeltonikaFm implements ModConstats {
 					map.put("dasnTemp", String.valueOf(navTemp));
 					map.put("i_spmt_id", Integer.toString(conf.getModType()));
 					// запись в БД
-					pgcon.setDataSensorValues(map, values);
+					pgcon.setDataSensorValues(map, getDateTime(), values);
 					// Ответ блоку
 					try {
 						pgcon.addDataSensor();
@@ -251,7 +245,6 @@ public class ModTeltonikaFm implements ModConstats {
 	}
 
 	private void getGnss() {
-		navDateTime = getDateTime();
 		navPriority = String.valueOf(readByte()); // приоритет
 		logger.debug("Приоритет : " + navPriority);
 		navLongitude = ModUtils.getDegreeFromInt(getIntU32());
@@ -283,13 +276,13 @@ public class ModTeltonikaFm implements ModConstats {
 		clientSocket.send(askDatagram);
 	}
 
-	private String getDateTime() {
+	private Date getDateTime() {
 		double timestamp = 0;
 		for (int i = 0; i < 8; i++) {
 			timestamp = timestamp + readByte() * Math.pow(2, ((7 - i) * 8));
 		}
 		date.setTime((long) timestamp);
-		return utils.getDate(date);
+		return date;
 	}
 
 	/**

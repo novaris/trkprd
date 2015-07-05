@@ -17,11 +17,11 @@ public class ServiceDataRecord {
 
 	private byte srRecordFlags = 0x00;
 
-	private int srRecordOid  = 0;
+	private int srRecordOid = 0;
 
 	private int srRecordEvid = 0;
 
-	private int srRecordTm   = 0;
+	private int srRecordTm = 0;
 
 	private boolean preRecordOid = false;
 
@@ -54,7 +54,7 @@ public class ServiceDataRecord {
 		int k = fdHeadLength;
 		serviceSubRecordData.clear();
 		while (k < fdDataLength) {
-			
+
 			this.setSrRecordLength(ptFrameData[k++]
 					+ ((ptFrameData[k++] << 8) & 0xff00));
 			this.setSrRecordNumber(ptFrameData[k++]
@@ -80,9 +80,8 @@ public class ServiceDataRecord {
 			if (subRecord.isValid()) {
 				this.addSubRecordData(subRecord);
 			}
-			
+
 			k = k + this.getSrRecordLength();
-			
 
 		}
 
