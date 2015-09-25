@@ -6,6 +6,8 @@ import java.util.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
@@ -20,9 +22,9 @@ public class TrackPgUtils implements ModConstats {
 
 	private static final Logger logger = Logger.getLogger(TrackPgUtils.class);
 
-	private final PooledConnection pc;
+	private PooledConnection pc;
 
-	private final Connection db; // A connection to the database
+	private Connection db; // A connection to the database
 
 	private HashMap<String, String> ds;
 
@@ -40,7 +42,27 @@ public class TrackPgUtils implements ModConstats {
 
 	private PreparedStatement ps;
 
-	private Date dasnDateTime;
+	private Timestamp dasnDateTime;
+
+	private String pgDatabaseName;
+
+	private String pgUser;
+
+	private String pgPasswd;
+
+	private String pgHost;
+	
+	private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss.ms");
+
+	public String getPgHost() {
+		return pgHost;
+	}
+
+	public void setPgHost(String pgHost) {
+		this.pgHost = pgHost;
+	}
+
+	private int pgPort;
 
 	/*
 	 * String vehicleId; int dasnUid; String dasnDateTime; float dasnLatitude;
@@ -55,20 +77,34 @@ public class TrackPgUtils implements ModConstats {
 	}
 
 	public void setDasnDateTime(Date dasnDateTime) {
-		this.dasnDateTime = dasnDateTime;
+		this.dasnDateTime = new java.sql.Timestamp(dasnDateTime.getTime()); 
 	}
 
-	public TrackPgUtils(ModConfig conf) throws ClassNotFoundException,
-			SQLException {
+	public TrackPgUtils() {
+
+	}
+
+	public void setConfig(ModConfig config) {
+		{
+			this.setPgPasswd(config.getPgPasswd());
+			this.setPgUser(config.getPgUser());
+			this.setPgDatabaseName(config.getPgDatabaseName());
+			this.setPgHost(config.getPgHost());
+			this.setPgPort(config.getPgPort());
+		}
+
+	}
+
+	public void connect() throws ClassNotFoundException, SQLException {
 		{
 			final PGConnectionPoolDataSource pgds = new PGConnectionPoolDataSource();
 			pgds.setLoginTimeout(10);
-			pgds.setPassword(conf.getPgPasswd());
+			pgds.setPassword(getPgPasswd());
 			pgds.setDefaultAutoCommit(true);
-			pgds.setUser(conf.getPgUser());
-			pgds.setDatabaseName(conf.getPgDatabaseName());
-			pgds.setServerName(conf.getPgHost());
-			pgds.setPortNumber(conf.getPgPort());
+			pgds.setUser(getPgUser());
+			pgds.setDatabaseName(getPgDatabaseName());
+			pgds.setServerName(getPgHost());
+			pgds.setPortNumber(getPgPort());
 			this.pc = pgds.getPooledConnection();
 			this.db = pc.getConnection();
 		}
@@ -81,7 +117,7 @@ public class TrackPgUtils implements ModConstats {
 
 	public void setDataSensor(HashMap<String, String> ds, Date navDateTime) {
 		this.ds = ds;
-		this.dasnDateTime = navDateTime;
+		this.dasnDateTime = new java.sql.Timestamp(navDateTime.getTime());
 	}
 
 	public void setDataValues(HashMap<Integer, BigInteger> values) {
@@ -92,7 +128,7 @@ public class TrackPgUtils implements ModConstats {
 			HashMap<Integer, BigInteger> values) {
 		this.ds = ds;
 		this.values = values;
-		this.dasnDateTime = date;
+		this.dasnDateTime = new java.sql.Timestamp(date.getTime());
 	}
 
 	public void addDataSensor() throws SQLException {
@@ -216,8 +252,8 @@ public class TrackPgUtils implements ModConstats {
 				logger.debug(new StringBuffer().append("SQL Statment : ")
 						.append("SELECT ").append("add_data_sensor('")
 						.append(ds.get("vehicleId")).append("'::varchar,")
-						.append(ds.get("vehicleId")).append("::int8,")
-						.append(dasnDateTime).append("'::timestamp,'")
+						.append(ds.get("vehicleId")).append("::int8,'")
+						.append(dateFormat.format(dasnDateTime)).append("'::timestamp,")
 						.append(ds.get("dasnLatitude")).append("::float8,")
 						.append(ds.get("dasnLongitude")).append("::float8,")
 						.append(ds.get("dasnStatus")).append("::int4,")
@@ -288,7 +324,7 @@ public class TrackPgUtils implements ModConstats {
 				if (dasnDateTime == null) {
 					ps.setNull(3, java.sql.Types.DATE);
 				} else {
-					ps.setDate(3, (java.sql.Date) dasnDateTime);
+					ps.setTimestamp(3, dasnDateTime);
 				}
 				if (ds.get("dasnLatitude") == null) {
 					ps.setNull(4, java.sql.Types.FLOAT);
@@ -505,6 +541,38 @@ public class TrackPgUtils implements ModConstats {
 					"Command not getting. Describe : ").append(cmdInfo));
 		}
 
+	}
+
+	public String getPgDatabaseName() {
+		return pgDatabaseName;
+	}
+
+	public void setPgDatabaseName(String pgDatabaseName) {
+		this.pgDatabaseName = pgDatabaseName;
+	}
+
+	public String getPgUser() {
+		return pgUser;
+	}
+
+	public void setPgUser(String pgUser) {
+		this.pgUser = pgUser;
+	}
+
+	public String getPgPasswd() {
+		return pgPasswd;
+	}
+
+	public void setPgPasswd(String pgPasswd) {
+		this.pgPasswd = pgPasswd;
+	}
+
+	public int getPgPort() {
+		return pgPort;
+	}
+
+	public void setPgPort(int pgPort) {
+		this.pgPort = pgPort;
 	}
 
 }

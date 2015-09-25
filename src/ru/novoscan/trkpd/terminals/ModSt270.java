@@ -70,7 +70,7 @@ public class ModSt270 implements ModConstats {
 
 	private float packetSize;
 
-	private static int maxPacketSize;
+	private int maxPacketSize;
 
 	private HashMap<String, String> map = new HashMap<String, String>();
 

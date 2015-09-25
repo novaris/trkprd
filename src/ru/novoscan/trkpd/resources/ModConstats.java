@@ -1,5 +1,6 @@
 package ru.novoscan.trkpd.resources;
 
+import java.util.Calendar;
 import java.util.TimeZone;
 
 public interface ModConstats {
@@ -43,11 +44,15 @@ public interface ModConstats {
 
 	public final static int IMEI_LENGTH = 15;
 
+	public final static int SCOUT_MAX_PACKET_LENGTH = 32768;
+
 	//
 
 	public final static String SQL_DATE_FORMAT = "YYYYMMDDHH24:MI:SS.MS";
 
 	public final static TimeZone TIME_ZONE = TimeZone.getTimeZone("UTC");
+	
+	public final static int TZ_OFFSET = Calendar.getInstance().getTimeZone().getRawOffset();
 
 	public static final String DATE_FORMAT = "yyyyMMddHH:mm:ss";
 

@@ -47,6 +47,8 @@ public class ModTeltonikaFm implements ModConstats {
 	private final static int TYPE_DATA_ACK = 0x01;
 
 	private final static int TYPE_ACK = 0x02;
+	
+	private final static int ADC_KEY = 66;
 
 	private byte[] packetData;
 
@@ -86,7 +88,15 @@ public class ModTeltonikaFm implements ModConstats {
 
 	private int navAvlId;
 
-	private Date date = new Date();
+	private Date navDateTime = new Date();
+
+	public Date getNavDateTime() {
+		return navDateTime;
+	}
+
+	public void setNavDateTime(Date navDateTime) {
+		this.navDateTime = navDateTime;
+	}
 
 	private HashMap<Integer, BigInteger> values = new HashMap<>();
 
@@ -174,11 +184,15 @@ public class ModTeltonikaFm implements ModConstats {
 					// map.put("dasnGpio", String.valueOf(navGpio));
 					// map.put("dasnAdc", String.valueOf(navAdc));
 					map.put("dasnGpio", null);
-					map.put("dasnAdc", null);
+					if(values.containsKey(ADC_KEY)) {
+						map.put("dasnAdc", values.get(ADC_KEY).toString());
+					} else {
+						map.put("dasnAdc", null);
+					}
 					map.put("dasnTemp", String.valueOf(navTemp));
 					map.put("i_spmt_id", Integer.toString(conf.getModType()));
 					// запись в БД
-					pgcon.setDataSensorValues(map, getDateTime(), values);
+					pgcon.setDataSensorValues(map, getNavDateTime(), values);
 					// Ответ блоку
 					try {
 						pgcon.addDataSensor();
@@ -245,6 +259,7 @@ public class ModTeltonikaFm implements ModConstats {
 	}
 
 	private void getGnss() {
+		parseDateTime();
 		navPriority = String.valueOf(readByte()); // приоритет
 		logger.debug("Приоритет : " + navPriority);
 		navLongitude = ModUtils.getDegreeFromInt(getIntU32());
@@ -276,13 +291,13 @@ public class ModTeltonikaFm implements ModConstats {
 		clientSocket.send(askDatagram);
 	}
 
-	private Date getDateTime() {
+	private void parseDateTime() {
 		double timestamp = 0;
 		for (int i = 0; i < 8; i++) {
 			timestamp = timestamp + readByte() * Math.pow(2, ((7 - i) * 8));
 		}
-		date.setTime((long) timestamp);
-		return date;
+		timestamp = timestamp - TZ_OFFSET;
+		navDateTime.setTime((long) timestamp);
 	}
 
 	/**

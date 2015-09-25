@@ -8,7 +8,6 @@ import java.math.BigInteger;
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -16,7 +15,6 @@ import org.apache.log4j.Logger;
 
 import ru.novoscan.trkpd.resources.ModConstats;
 import ru.novoscan.trkpd.utils.ModConfig;
-import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
 public class ModScoutOpen implements ModConstats {
@@ -28,11 +26,11 @@ public class ModScoutOpen implements ModConstats {
 
 	private HashMap<String, String> map = new HashMap<String, String>();
 
-	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
-
 	private final static int readOK = 0x55;
 
-	private int[] packet = new int[32768];
+	private static final RuntimeException InvalidLength = new RuntimeException("Превышение размера пакета.");
+	
+	private int[] packet = new int[SCOUT_MAX_PACKET_LENGTH];
 
 	private DataInputStream iDsLocal;
 
@@ -42,7 +40,7 @@ public class ModScoutOpen implements ModConstats {
 
 	private String navDeviceID;
 
-	private String navDateTime;
+	private Date navDateTime = new Date();
 
 	private float navLatitude;
 
@@ -64,8 +62,6 @@ public class ModScoutOpen implements ModConstats {
 
 	private int navDeviceStatus;
 
-	private Date date = new Date();
-
 	private final ModConfig conf;
 
 	private final TrackPgUtils pgcon;
@@ -73,8 +69,6 @@ public class ModScoutOpen implements ModConstats {
 	private final DataOutputStream oDs;
 
 	private HashMap<Integer, BigInteger> values = new HashMap<>();
-
-	private final ModUtils utils = new ModUtils();
 
 	public ModScoutOpen(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) {
@@ -126,8 +120,7 @@ public class ModScoutOpen implements ModConstats {
 					}
 					timestamp = (timestamp - TICKS_AT_EPOCH)
 							/ TICKS_PER_MILLISECOND;
-					date.setTime(timestamp);
-					navDateTime = utils.getDate(date);
+					navDateTime.setTime(timestamp - TZ_OFFSET);
 					logger.debug("Дата : " + navDateTime);
 
 					int longitude = 0;
@@ -190,16 +183,20 @@ public class ModScoutOpen implements ModConstats {
 				}
 
 			}
+		} catch (ArrayIndexOutOfBoundsException e) {
+			logger.error("ArrayIndexOutOfBoundsException : " + e.getMessage());
 		} catch (SocketTimeoutException e) {
 			logger.error("Close connection : " + e.getMessage());
 		} catch (IOException e) {
 			logger.warn("IO socket error : " + e.getMessage());
+		} catch (RuntimeException e) {
+			logger.error("Runtime Excepption : " + e.getMessage());
 		} catch (Exception e) {
 			logger.fatal("Exception : " + e.toString());
 		}
 	}
 
-	private void parseData(String data) {
+	private void parseData(String data) throws ArrayIndexOutOfBoundsException {
 		int seek = 0;
 		int typeCode = 0;
 		int id = 0;
@@ -233,13 +230,17 @@ public class ModScoutOpen implements ModConstats {
 		return fullreadbytes;
 	}
 
-	private int readByte() throws IOException {
+	private int readByte() throws IOException, ArrayIndexOutOfBoundsException, RuntimeException {
 		int bread = iDsLocal.readByte() & 0xff;
 		packet[readbytes] = bread;
 		logger.debug("packet[" + readbytes + "] : "
 				+ Integer.toHexString(packet[readbytes]));
 		readbytes++;
 		fullreadbytes++;
+		if (readbytes > SCOUT_MAX_PACKET_LENGTH) {
+			throw InvalidLength;
+		}
+
 		return bread;
 	}
 
@@ -269,7 +270,7 @@ public class ModScoutOpen implements ModConstats {
 		map.put("dasnTemp", String.valueOf((int) navAdc1));
 		map.put("i_spmt_id", Integer.toString(this.conf.getModType())); // запись
 																		// в
-		pgcon.setDataSensorValues(map, sdf.parse(navDateTime), values);
+		pgcon.setDataSensorValues(map, navDateTime, values);
 		try {
 			pgcon.addDataSensor();
 			logger.debug("Write Database OK");
@@ -279,6 +280,7 @@ public class ModScoutOpen implements ModConstats {
 		}
 		map.clear();
 		oDs.write(readOK);
+		readbytes = 0;
 	}
 
 }

@@ -17,6 +17,8 @@ public class ModConfig {
 
 	private String modName;
 
+	private static String serverType;
+
 	private static int serverPort;
 
 	private static String serverHost;
@@ -56,7 +58,7 @@ public class ModConfig {
 	public ModConfig() {
 	}
 
-	public void CNFinit() {
+	public void init() {
 		final Properties configFile = new Properties();
 		try {
 			configFile.loadFromXML(new FileInputStream(configName));
@@ -84,17 +86,17 @@ public class ModConfig {
 			if ((readInterval < 1000) || (readInterval > 10000000)) {
 				readInterval = 1000;
 			}
+			serverType = configFile.getProperty("ServerType");
 
 		} catch (InvalidPropertiesFormatException e) {
-			logger.fatal("Incorrect XML in file " + configFile + " : "
+			logger.fatal("Неверный XML в файле : " + configName + "\n"
 					+ e.getMessage());
 			System.exit(1);
 		} catch (FileNotFoundException e) {
-			logger.fatal("Config file not found " + configFile + " : "
-					+ e.getMessage());
+			logger.fatal("Файл конфигурации не найден : " + configName);
 			System.exit(1);
 		} catch (IOException e) {
-			logger.fatal("IO error file  " + configFile + " : "
+			logger.fatal("Ошибка чтения файла :  " + configName + "\n"
 					+ e.getMessage());
 			System.exit(1);
 		}
@@ -179,6 +181,10 @@ public class ModConfig {
 
 	public int getReadInterval() {
 		return readInterval;
+	}
+
+	public String getServerType() {
+		return serverType;
 	}
 
 }
