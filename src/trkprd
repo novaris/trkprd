@@ -1,13 +1,12 @@
 #!/bin/sh
 #
-# trkprd        Startup script for the TRKPRD for Universal Driver
+# trkprd_tfm        Startup script for the TRKPRD for Universal Driver
 #
 # chkconfig: - 88 10
-# description: Startup script for the TRKPRD for Universal Driver. \
-#	       XML type driver.
-# processname: ru.novoscan.TCPtrkprd
-# config: /opt/novoscan/trkprd/trkprd.conf
-# pidfile: /var/run/trkprd.pid
+# description: Startup script for the TRKPRD for Teltonika Driver. \
+# processname: ru.novoscan.UDPtrkprd
+# config: /opt/novoscan/trkprd/trkprd_tfm.conf
+# pidfile: /var/run/trkprd_tfm.pid
 
 # Source function library.
 . /etc/rc.d/init.d/functions
@@ -15,18 +14,18 @@
 #set -e
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-DESC="TRKPRD for Sync Scout Daemon"
+DESC="TRKPRD for Teltonika Daemon"
 NAME="trkprd"
 USER="novoscan"
-HOME="/opt/novoscan/$NAME"
-CP="$HOME:/opt/novoscan/lib/postgresql.jar:/opt/novoscan/lib/log4j.jar"
-MAIN="ru.novoscan.trkpd.TCPtrkprd"
-ARGS="-f /opt/novoscan/trkprd/trkprd.conf"
+HOME="/opt/novoscan/${NAME}"
+CP="$HOME/trkprd-1.0.0.jar:/opt/novoscan/lib/postgresql.jar:/opt/novoscan/lib/log4j.jar:/opt/novoscan/lib/commons-lang3.jar"
+MAIN="ru.novoscan.trkpd.Track"
+ARGS="-f /opt/novoscan/trkprd/trkprd_tfm.conf"
 RETVAL=0
 
-DAEMON="/usr/bin/java -server -cp $CP -Djava.awt.headless=true -Dlog4j.configuration=file://$HOME/log4j.properties $MAIN $ARGS"
-PIDFILE=/var/run/$NAME.pid
-SCRIPTNAME=/etc/init.d/$NAME
+DAEMON="/usr/bin/java -server -cp $CP -Djava.awt.headless=true -Dlog4j.configuration=file://${HOME}/log4j_tfm.properties $MAIN $ARGS"
+PIDFILE="/var/run/${NAME}_tfm.pid"
+SCRIPTNAME="/etc/init.d/${NAME}_tfm"
 
 # Gracefully exit if the package has been removed.
 test -x /usr/bin/java || exit 0
@@ -36,16 +35,16 @@ test -x /usr/bin/java || exit 0
 # ---------------------------------------
 start()
 {
-	echo -n "Starting $DESC $NAME: "
+	echo -n "Starting $DESC $NAME_tfm: "
 	PID=`pgrep -f "$DAEMON"`
 	if [ -n "$PID" ]; then
 		echo_warning
 		echo $PID > $PIDFILE
                	RETVAL=0
 	else
-		su -p -s /bin/sh $USER -c "$DAEMON &>/dev/null &"
-		PID=`pgrep -f "$DAEMON"`
-		if [ -n "$PID" ]; then
+		su -p -s /bin/sh $USER -c "${DAEMON} &>/dev/null &"
+		PID=`pgrep -f "${DAEMON}"`
+		if [ -n "${PID}" ]; then
 			echo_success
 	               	RETVAL=0
 		else
@@ -54,7 +53,7 @@ start()
 		fi
 	fi
 	echo
-	return $RETVAL
+	return ${RETVAL}
 }
  
 # --------------------------------------
@@ -62,7 +61,7 @@ start()
 # --------------------------------------
 stop()
 {
-  	echo -n "Stopping $DESC $NAME: "
+  	echo -n "Stopping $DESC ${NAME}_tfm: "
 	PID=`pgrep -f "$DAEMON"`
         if [ $UID -ne 0 ]; then
                 RETVAL=1
@@ -99,10 +98,21 @@ restart|force-reload)
   sleep 1
   start
 ;;
+status)
+        PID=`pgrep -f "$DAEMON"`
+        if [ -n "$PID" ]; then
+                RETVAL=0
+                echo "$DESC is running: $PID"
+        else
+                RETVAL=1
+                echo "$DESC is stopped"
+        fi
+;;
 *)
-echo "Usage: $SCRIPTNAME {start|stop|restart|force-reload}" >&2
+echo "Usage: $SCRIPTNAME {start|stop|restart|force-reload|status}" >&2
 exit 1
 ;;
 esac
 
 exit $RETVAL
+
