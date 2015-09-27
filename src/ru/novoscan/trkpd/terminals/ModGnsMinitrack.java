@@ -4,7 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -74,151 +73,143 @@ public class ModGnsMinitrack implements ModConstats {
 
 	public ModGnsMinitrack(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
-			throws ParseException {
+			throws ParseException, IOException {
 		maxPacketSize = conf.getMaxSize();
-		try {
-			String data = "";
-			int cread;
 
-			// Получение от устройства CIO;
-			readbytes = 0;
+		String data = "";
+		int cread;
 
-			while ((cread = console.read()) != -1) {
-				readbytes = readbytes + 1;
-				logger.debug("Byte [" + readbytes + "] : " + (char) cread);
-				if (PatCTRN == cread) {
-					logger.debug("CTRN found");
-				} else if (PatCTRL == cread) {
-					logger.debug("CTRL found");
-					break;
-				} else {
-					data = data + (char) cread;
-					if (readbytes > maxPacketSize) {
-						logger.error("Incorrect Size packet data : " + data);
-						data = "";
-						map.clear();
-						return;
-					}
-					if (PatCIO.matcher(data).matches()) {
-						logger.debug("CIO found : " + data);
-					}
-				}
+		// Получение от устройства CIO;
+		readbytes = 0;
 
-			}
-			logger.debug("Get IMEI : " + getIMEI);
-			oDs.writeUTF(getIMEI);
-			data = "";
-			while ((cread = console.read()) != -1) {
-				readbytes = readbytes + 1;
-				if (PatCTRN == cread) {
-					logger.debug("CTRN found");
-					// теперь проверим - пока заглушка
-					if (PatIMEI.matcher(data).matches()) {
-						Matcher m = PatIMEI.matcher(data);
-						if (m.matches()) {
-							IMEI = m.group(1);
-						}
-						logger.debug("IMEI : " + IMEI);
-					} else {
-						logger.error("IMEI incorrect : " + data);
-						return;
-					}
-					if (pgcon.getImeiModule(IMEI) > 0) {
-						logger.debug("IMEI found in database : " + IMEI);
-					} else {
-						logger.error("IMEI not found : " + IMEI);
-						return;
-					}
-				} else if (PatCTRL == cread) {
-					logger.debug("CTRL found");
-					break;
-				} else {
-					data = data + (char) cread;
-				}
-
-			}
-			oDs.writeUTF(getPacket);
-			data = "";
-			while ((cread = console.read()) != -1) {
-				readbytes = readbytes + 1;
-				logger.debug("Read[" + readbytes + "] " + (char) cread);
-				if (PatCTRN == cread) {
-					logger.debug("CTRN found");
-				} else if (PatCTRL == cread) {
-					if (PatPacket.matcher(data).matches()) {
-						logger.debug("Read packet : " + data);
-						// Разберём пакет
-						packet = data;
-						parsePacket();
-						/*
-						 * String vehicleId; int dasnUid; String dasnDateTime;
-						 * float dasnLatitude; float dasnLongitude; int
-						 * dasnStatus; int dasnSatUsed; int dasnZoneAlarm; int
-						 * dasnMacroId; int dasnMacroSrc; float dasnSog; float
-						 * dasnCource; float dasnHdop; float dasnHgeo; float
-						 * dasnHmet; int dasnGpio; int dasnAdc; float dasnTemp;
-						 * int8 i_spmt_id;
-						 */
-						map.put("vehicleId", IMEI);
-						map.put("dasnUid", IMEI);
-						map.put("dasnLatitude", navLatitude);
-						map.put("dasnLongitude", navLongitude);
-						map.put("dasnStatus", String.valueOf(navStatus));
-						map.put("dasnSatUsed", null);
-						map.put("dasnZoneAlarm", null);
-						map.put("dasnMacroId", null);
-						map.put("dasnMacroSrc", null);
-						map.put("dasnSog", navSog);
-						map.put("dasnCource", navCource);
-						map.put("dasnHdop", null);
-						map.put("dasnHgeo", null);
-						map.put("dasnHmet", null);
-						map.put("dasnGpio", null);
-						map.put("dasnAdc", null);
-						map.put("dasnTemp", null);
-						map.put("i_spmt_id",
-								Integer.toString(conf.getModType()));
-						// запись в БД
-						if (navStatus == 1) {
-							pgcon.setDataSensor(map,
-									sdf.parse(navDate + navTime));
-							try {
-								pgcon.addDataSensor();
-								logger.debug("Write Database OK");
-							} catch (SQLException e) {
-								logger.warn("Error Writing Database : "
-										+ e.getMessage());
-							}
-							map.clear();
-						} else {
-							logger.error("Status data incorrect : " + IMEI);
-						}
-						packet = "";
-					} else if (PatExists.matcher(data).matches()) {
-						logger.debug("Exists data : " + data);
-						logger.debug("Send " + getPacket);
-						oDs.writeUTF(getPacket);
-					} else if (PatNotFound.matcher(data).matches()) {
-						logger.debug("End of data : " + data);
-						return;
-					} else {
-						logger.debug("Incorrect data : " + data);
-						logger.debug("Send " + getPacket);
-						oDs.writeUTF(getPacket);
-					}
+		while ((cread = console.read()) != -1) {
+			readbytes = readbytes + 1;
+			logger.debug("Byte [" + readbytes + "] : " + (char) cread);
+			if (PatCTRN == cread) {
+				logger.debug("CTRN found");
+			} else if (PatCTRL == cread) {
+				logger.debug("CTRL found");
+				break;
+			} else {
+				data = data + (char) cread;
+				if (readbytes > maxPacketSize) {
+					logger.error("Incorrect Size packet data : " + data);
 					data = "";
-				} else {
-					data = data + (char) cread;
+					map.clear();
+					return;
+				}
+				if (PatCIO.matcher(data).matches()) {
+					logger.debug("CIO found : " + data);
 				}
 			}
 
-			readbytes = 0;
-			logger.debug("Close reader console");
-		} catch (SocketTimeoutException e) {
-			logger.error("Close connection : " + e.getMessage());
-		} catch (IOException e) {
-			logger.warn("IO socket error : " + e.getMessage());
 		}
+		logger.debug("Get IMEI : " + getIMEI);
+		oDs.writeUTF(getIMEI);
+		data = "";
+		while ((cread = console.read()) != -1) {
+			readbytes = readbytes + 1;
+			if (PatCTRN == cread) {
+				logger.debug("CTRN found");
+				// теперь проверим - пока заглушка
+				if (PatIMEI.matcher(data).matches()) {
+					Matcher m = PatIMEI.matcher(data);
+					if (m.matches()) {
+						IMEI = m.group(1);
+					}
+					logger.debug("IMEI : " + IMEI);
+				} else {
+					logger.error("IMEI incorrect : " + data);
+					return;
+				}
+				if (pgcon.getImeiModule(IMEI) > 0) {
+					logger.debug("IMEI found in database : " + IMEI);
+				} else {
+					logger.error("IMEI not found : " + IMEI);
+					return;
+				}
+			} else if (PatCTRL == cread) {
+				logger.debug("CTRL found");
+				break;
+			} else {
+				data = data + (char) cread;
+			}
+
+		}
+		oDs.writeUTF(getPacket);
+		data = "";
+		while ((cread = console.read()) != -1) {
+			readbytes = readbytes + 1;
+			logger.debug("Read[" + readbytes + "] " + (char) cread);
+			if (PatCTRN == cread) {
+				logger.debug("CTRN found");
+			} else if (PatCTRL == cread) {
+				if (PatPacket.matcher(data).matches()) {
+					logger.debug("Read packet : " + data);
+					// Разберём пакет
+					packet = data;
+					parsePacket();
+					/*
+					 * String vehicleId; int dasnUid; String dasnDateTime; float
+					 * dasnLatitude; float dasnLongitude; int dasnStatus; int
+					 * dasnSatUsed; int dasnZoneAlarm; int dasnMacroId; int
+					 * dasnMacroSrc; float dasnSog; float dasnCource; float
+					 * dasnHdop; float dasnHgeo; float dasnHmet; int dasnGpio;
+					 * int dasnAdc; float dasnTemp; int8 i_spmt_id;
+					 */
+					map.put("vehicleId", IMEI);
+					map.put("dasnUid", IMEI);
+					map.put("dasnLatitude", navLatitude);
+					map.put("dasnLongitude", navLongitude);
+					map.put("dasnStatus", String.valueOf(navStatus));
+					map.put("dasnSatUsed", null);
+					map.put("dasnZoneAlarm", null);
+					map.put("dasnMacroId", null);
+					map.put("dasnMacroSrc", null);
+					map.put("dasnSog", navSog);
+					map.put("dasnCource", navCource);
+					map.put("dasnHdop", null);
+					map.put("dasnHgeo", null);
+					map.put("dasnHmet", null);
+					map.put("dasnGpio", null);
+					map.put("dasnAdc", null);
+					map.put("dasnTemp", null);
+					map.put("i_spmt_id", Integer.toString(conf.getModType()));
+					// запись в БД
+					if (navStatus == 1) {
+						pgcon.setDataSensor(map, sdf.parse(navDate + navTime));
+						try {
+							pgcon.addDataSensor();
+							logger.debug("Write Database OK");
+						} catch (SQLException e) {
+							logger.warn("Error Writing Database : "
+									+ e.getMessage());
+						}
+						map.clear();
+					} else {
+						logger.error("Status data incorrect : " + IMEI);
+					}
+					packet = "";
+				} else if (PatExists.matcher(data).matches()) {
+					logger.debug("Exists data : " + data);
+					logger.debug("Send " + getPacket);
+					oDs.writeUTF(getPacket);
+				} else if (PatNotFound.matcher(data).matches()) {
+					logger.debug("End of data : " + data);
+					return;
+				} else {
+					logger.debug("Incorrect data : " + data);
+					logger.debug("Send " + getPacket);
+					oDs.writeUTF(getPacket);
+				}
+				data = "";
+			} else {
+				data = data + (char) cread;
+			}
+		}
+
+		readbytes = 0;
+		logger.debug("Close reader console");
 
 	}
 

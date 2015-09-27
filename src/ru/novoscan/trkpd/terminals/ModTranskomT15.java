@@ -3,6 +3,7 @@ package ru.novoscan.trkpd.terminals;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.sql.SQLException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.regex.Matcher;
@@ -63,7 +64,7 @@ public class ModTranskomT15 implements ModConstats {
 	private HashMap<String, String> map = new HashMap<String, String>();
 
 	public ModTranskomT15(DatagramPacket dataPacket,
-			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon) {
+			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon) throws ParseException {
 		data = "";
 		dataByte = dataPacket.getData();
 		for (int i = 0; i < dataPacket.getLength(); i++) {
@@ -74,7 +75,6 @@ public class ModTranskomT15 implements ModConstats {
 			data = data + (char) dataByte[i];
 		}
 		logger.debug("Read data: \"" + data + "\"");
-		try {
 			Matcher m = patternTranskomT15.matcher(data);
 			if (m.matches()) {
 				float dasnLatitude = ModUtils.getGGMM(m.group(4) + m.group(5));
@@ -124,9 +124,6 @@ public class ModTranskomT15 implements ModConstats {
 				logger.error("Unknown packet data : \"" + data + "\"");
 				map.clear();
 			}
-		} catch (Exception e) {
-			logger.warn("Exception : " + e.getMessage());
-		}
 
 	}
 

@@ -4,7 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.HashMap;
@@ -113,7 +112,8 @@ public class ModGalileoSky implements ModConstats {
 	private static TrackPgUtils pgcon;
 
 	public ModGalileoSky(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
+			throws IOException {
 		// int cread;
 		ModGalileoSky.conf = conf;
 		ModGalileoSky.pgcon = pgcon;
@@ -121,67 +121,54 @@ public class ModGalileoSky implements ModConstats {
 		iDsLocal = iDs;
 		logger.debug("Read streems..");
 		fullreadbytes = 0;
-		try {
-			while (true) {
-				for (int i = 0; i < packetHeaderLength; i++) {
-					packetHeader[i] = readByte();
-				}
-				// Обработаем заголовок
-				parseHeader();
-				if (packetSize <= packetMaxLength) {
-					String cmd = "";
-					// Считаем данные
-					for (int i = 0; i < packetSize; i++) {
-						packet[i] = readByte();
-					}
-					// ответим
-					/*
-					 * Формат ответа: Заголовок 1байт + Контрольная Сумма 2байта
-					 */
-					parseData();
-					writeData();
-					sendResponce(oDs, cmd);
-					packetCount++;
-					readbytes = 0;
-				} else {
-					logger.error("Неверная длина пакета : " + packetSize);
-					logger.debug("Количество принятых пакетов : " + packetCount);
-					return;
-				}
-				/*
-				 * // Сохраним в БД данные map.put("vehicleId",
-				 * String.valueOf(navDeviceID)); map.put("dasnUid",
-				 * String.valueOf(navDeviceID)); map.put("dasnLatitude",
-				 * String.valueOf(navLatitude)); map.put("dasnLongitude",
-				 * String.valueOf(navLongitude)); map.put("dasnStatus",
-				 * Integer.toString(navDeviceStatus)); map.put("dasnSatUsed",
-				 * Integer.toString(navSatellitesCount));
-				 * map.put("dasnZoneAlarm", null); map.put("dasnMacroId", null);
-				 * map.put("dasnMacroSrc", null); map.put("dasnSog",
-				 * String.valueOf(navSpeed)); map.put("dasnCource",
-				 * String.valueOf(navCource)); map.put("dasnHdop", null);
-				 * map.put("dasnHgeo", null); map.put("dasnHmet", null);
-				 * map.put("dasnGpio", null); map.put("dasnAdc",
-				 * String.valueOf(navPower)); map.put("dasnTemp",
-				 * String.valueOf(navTemp)); map.put("i_spmt_id",
-				 * Integer.toString(conf.getModType())); // запись в БД
-				 * pgcon.setDataSensor(map); try { pgcon.addDataSensor();
-				 * logger.debug("Write Database OK"); } catch (SQLException e) {
-				 * logger.warn("Error Writing Database : " + e.getMessage()); }
-				 * map.clear();
-				 */
-				// sendCRC(oDs, navCRC);
+		while (true) {
+			for (int i = 0; i < packetHeaderLength; i++) {
+				packetHeader[i] = readByte();
 			}
-
-		} catch (SocketTimeoutException e) {
-			logger.error("Close connection : " + e.getMessage());
-			logger.debug("Количество принятых пакетов : " + packetCount);
-		} catch (IOException e3) {
-			logger.warn("IO socket error : " + e3.getMessage());
-			logger.debug("Количество принятых пакетов : " + packetCount);
-		} catch (RuntimeException e4) {
-			logger.warn("Packet parse error : " + e4.getMessage());
-			logger.debug("Количество принятых пакетов : " + packetCount);
+			// Обработаем заголовок
+			parseHeader();
+			if (packetSize <= packetMaxLength) {
+				String cmd = "";
+				// Считаем данные
+				for (int i = 0; i < packetSize; i++) {
+					packet[i] = readByte();
+				}
+				// ответим
+				/*
+				 * Формат ответа: Заголовок 1байт + Контрольная Сумма 2байта
+				 */
+				parseData();
+				writeData();
+				sendResponce(oDs, cmd);
+				packetCount++;
+				readbytes = 0;
+			} else {
+				logger.error("Неверная длина пакета : " + packetSize);
+				logger.debug("Количество принятых пакетов : " + packetCount);
+				return;
+			}
+			/*
+			 * // Сохраним в БД данные map.put("vehicleId",
+			 * String.valueOf(navDeviceID)); map.put("dasnUid",
+			 * String.valueOf(navDeviceID)); map.put("dasnLatitude",
+			 * String.valueOf(navLatitude)); map.put("dasnLongitude",
+			 * String.valueOf(navLongitude)); map.put("dasnStatus",
+			 * Integer.toString(navDeviceStatus)); map.put("dasnSatUsed",
+			 * Integer.toString(navSatellitesCount)); map.put("dasnZoneAlarm",
+			 * null); map.put("dasnMacroId", null); map.put("dasnMacroSrc",
+			 * null); map.put("dasnSog", String.valueOf(navSpeed));
+			 * map.put("dasnCource", String.valueOf(navCource));
+			 * map.put("dasnHdop", null); map.put("dasnHgeo", null);
+			 * map.put("dasnHmet", null); map.put("dasnGpio", null);
+			 * map.put("dasnAdc", String.valueOf(navPower)); map.put("dasnTemp",
+			 * String.valueOf(navTemp)); map.put("i_spmt_id",
+			 * Integer.toString(conf.getModType())); // запись в БД
+			 * pgcon.setDataSensor(map); try { pgcon.addDataSensor();
+			 * logger.debug("Write Database OK"); } catch (SQLException e) {
+			 * logger.warn("Error Writing Database : " + e.getMessage()); }
+			 * map.clear();
+			 */
+			// sendCRC(oDs, navCRC);
 		}
 
 	}

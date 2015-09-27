@@ -5,9 +5,6 @@ import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.util.HashMap;
-import java.util.regex.Pattern;
-
 import org.apache.log4j.Logger;
 
 import ru.novoscan.trkpd.resources.ModConstats;
@@ -20,22 +17,7 @@ public class ModAzimut implements ModConstats {
 
 	private int fullreadbytes = 0;
 
-	private final TrackPgUtils pgcon;
-
-	private final ModConfig conf;
-
-	private final int maxPacketSize;
-
-	private static final Pattern patternAZM = Pattern
-			.compile("\\!()(.*)\\*(.{2})");
-
-	private HashMap<String, String> map = new HashMap<String, String>();
-
 	private int readbytes;
-
-	private DatagramPacket dataPacket;
-
-	private DatagramSocket clientSocket;
 
 	private byte[] packetData;
 
@@ -49,16 +31,10 @@ public class ModAzimut implements ModConstats {
 
 	private int navCRC;
 
-	private int parseCount;
-
 	public ModAzimut(DatagramPacket dataPacket, DatagramSocket clientSocket,
 			ModConfig conf, TrackPgUtils pgcon) {
-		this.conf = conf;
-		this.pgcon = pgcon;
-		this.dataPacket = dataPacket;
-		this.clientSocket = clientSocket;
 		logger.debug("Чтение потока..");
-		maxPacketSize = conf.getMaxSize();
+		conf.getMaxSize();
 		// packetData = new byte[maxPacketSize];
 		fullreadbytes = 0;
 		readbytes = 0;
@@ -73,13 +49,10 @@ public class ModAzimut implements ModConstats {
 
 	public ModAzimut(DataInputStream inp, DataOutputStream out,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) {
-		this.conf = conf;
-		this.pgcon = pgcon;
-		maxPacketSize = conf.getMaxSize();
+		conf.getMaxSize();
 	}
 
 	private void parsePacket() {
-		parseCount = 13;
 		int readData = 0;
 		while (readData < navMsgLen) {
 			// 9 байт заголовок

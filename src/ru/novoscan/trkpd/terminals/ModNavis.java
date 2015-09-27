@@ -4,7 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
@@ -107,7 +106,7 @@ public class ModNavis implements ModConstats {
 
 	public ModNavis(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
-			throws ParseException {
+			throws ParseException, IOException {
 		dfIMEI.setMaximumIntegerDigits(15);
 		dfIMEI.setMinimumIntegerDigits(15);
 		dfIMEI.setGroupingSize(15);
@@ -121,98 +120,90 @@ public class ModNavis implements ModConstats {
 		fullreadbytes = 0;
 		maxPacketSize = conf.getMaxSize();
 		crcData = new int[2];
-		try {
-			for (int i = 0; i < PACKET_HANDSHAKE_LENGTH; i++) {
-				packetHadnshake[i] = readByte();
-			}
-			parseHandshake();
-			sendResponce(oDs, cmd);
-			while (true) {
+		for (int i = 0; i < PACKET_HANDSHAKE_LENGTH; i++) {
+			packetHadnshake[i] = readByte();
+		}
+		parseHandshake();
+		sendResponce(oDs, cmd);
+		while (true) {
 
-				for (int i = 0; i < PACKET_HEADER_LENGTH; i++) {
-					packetHeader[i] = readByte();
-				}
-				logger.debug("Данные прочтены.");
-				dataSize = 0;
-				parseHeader();
-				packetData = new int[dataSize]; // пакет с нулевого считается
-				for (int i = 0; i < dataSize; i++) {
-					packetData[i] = readByte();
-				}
-				crcData[0] = readByte();
-				crcData[1] = readByte();
-				logger.debug("Контрольная сумма (HEX): "
-						+ Integer.toHexString(crcData[0]) + ""
-						+ Integer.toHexString(crcData[1]));
-				int crcAVL = ModUtils.getCrc16(packetData);
-				int crc = (crcData[0] * 256) + crcData[1];
-				logger.debug("Контрольная сумма вычисленная : " + crcAVL
-						+ " в данных " + crc);
-				if (crc != crcAVL) {
-					logger.warn("Контрольные суммы не совпадают!");
-				} else {
-					k = 0; // обработка пакета обнуление счётчика.
-					parseIMEI();
-					if (getCodec() == 2) {
-						int countPacket = getCountPacket();
-						logger.debug("Количество пакетов : " + countPacket);
-						for (int l = 0; l < countPacket; l++) {
-							logger.debug("Парсим пакет : " + l);
-							navDateTime = getDateTime();
-							logger.debug("Дата : " + navDateTime);
-							navReason = getReason();
-							logger.debug("Причина : " + navReason);
-							navData = "";
-							getGnss();
-							getIO();
-							if (navDeviceStatus == 1) {
-								map.clear();
-								map.put("vehicleId", navIMEI);
-								map.put("dasnUid", navIMEI);
-								map.put("dasnLatitude",
-										String.valueOf(navLatitude));
-								map.put("dasnLongitude",
-										String.valueOf(navLongitude));
-								map.put("dasnStatus",
-										String.valueOf(navDeviceStatus));
-								map.put("dasnSatUsed",
-										String.valueOf(navSatellitesCount));
-								map.put("dasnZoneAlarm", null);
-								map.put("dasnMacroId", null);
-								map.put("dasnMacroSrc", null);
-								map.put("dasnSog", String.valueOf(navSpeed));
-								map.put("dasnCource", String.valueOf(navCource));
-								map.put("dasnHdop", null);
-								map.put("dasnHgeo", String.valueOf(navHgeo));// Высота
-								map.put("dasnHmet", null);
-								map.put("dasnGpio", String.valueOf(navGpio));
-								map.put("dasnAdc", String.valueOf(navAdc));
-								map.put("dasnTemp", String.valueOf(navTemp));
-								map.put("i_spmt_id",
-										Integer.toString(conf.getModType()));
-								map.put("dasnXML", "<xml><i>" + navData
-										+ "</i></xml>");
-								// запись в БД
-								pgcon.setDataSensor(map, df.parse(navDateTime));
-								// Ответ блоку
-								try {
-									pgcon.addDataSensor();
-									logger.debug("Writing Database : "
-											+ navIMEI);
-								} catch (SQLException e) {
-									logger.warn("Error Writing Database : "
-											+ e.getMessage());
-								}
-								map.clear();
+			for (int i = 0; i < PACKET_HEADER_LENGTH; i++) {
+				packetHeader[i] = readByte();
+			}
+			logger.debug("Данные прочтены.");
+			dataSize = 0;
+			parseHeader();
+			packetData = new int[dataSize]; // пакет с нулевого считается
+			for (int i = 0; i < dataSize; i++) {
+				packetData[i] = readByte();
+			}
+			crcData[0] = readByte();
+			crcData[1] = readByte();
+			logger.debug("Контрольная сумма (HEX): "
+					+ Integer.toHexString(crcData[0]) + ""
+					+ Integer.toHexString(crcData[1]));
+			int crcAVL = ModUtils.getCrc16(packetData);
+			int crc = (crcData[0] * 256) + crcData[1];
+			logger.debug("Контрольная сумма вычисленная : " + crcAVL
+					+ " в данных " + crc);
+			if (crc != crcAVL) {
+				logger.warn("Контрольные суммы не совпадают!");
+			} else {
+				k = 0; // обработка пакета обнуление счётчика.
+				parseIMEI();
+				if (getCodec() == 2) {
+					int countPacket = getCountPacket();
+					logger.debug("Количество пакетов : " + countPacket);
+					for (int l = 0; l < countPacket; l++) {
+						logger.debug("Парсим пакет : " + l);
+						navDateTime = getDateTime();
+						logger.debug("Дата : " + navDateTime);
+						navReason = getReason();
+						logger.debug("Причина : " + navReason);
+						navData = "";
+						getGnss();
+						getIO();
+						if (navDeviceStatus == 1) {
+							map.clear();
+							map.put("vehicleId", navIMEI);
+							map.put("dasnUid", navIMEI);
+							map.put("dasnLatitude", String.valueOf(navLatitude));
+							map.put("dasnLongitude",
+									String.valueOf(navLongitude));
+							map.put("dasnStatus",
+									String.valueOf(navDeviceStatus));
+							map.put("dasnSatUsed",
+									String.valueOf(navSatellitesCount));
+							map.put("dasnZoneAlarm", null);
+							map.put("dasnMacroId", null);
+							map.put("dasnMacroSrc", null);
+							map.put("dasnSog", String.valueOf(navSpeed));
+							map.put("dasnCource", String.valueOf(navCource));
+							map.put("dasnHdop", null);
+							map.put("dasnHgeo", String.valueOf(navHgeo));// Высота
+							map.put("dasnHmet", null);
+							map.put("dasnGpio", String.valueOf(navGpio));
+							map.put("dasnAdc", String.valueOf(navAdc));
+							map.put("dasnTemp", String.valueOf(navTemp));
+							map.put("i_spmt_id",
+									Integer.toString(conf.getModType()));
+							map.put("dasnXML", "<xml><i>" + navData
+									+ "</i></xml>");
+							// запись в БД
+							pgcon.setDataSensor(map, df.parse(navDateTime));
+							// Ответ блоку
+							try {
+								pgcon.addDataSensor();
+								logger.debug("Writing Database : " + navIMEI);
+							} catch (SQLException e) {
+								logger.warn("Error Writing Database : "
+										+ e.getMessage());
 							}
+							map.clear();
 						}
 					}
 				}
 			}
-		} catch (SocketTimeoutException e) {
-			logger.error("Close connection : " + e.getMessage());
-		} catch (IOException e) {
-			logger.warn("IO socket error : " + e.getMessage());
 		}
 	}
 

@@ -17,6 +17,10 @@ public class ModConfig {
 
 	private String modName;
 
+	private static int pgMaxConn;
+
+	private static int pgInitConn;
+
 	private static String serverType;
 
 	private static int serverPort;
@@ -77,6 +81,8 @@ public class ModConfig {
 			pgUser = configFile.getProperty("DatabaseUser");
 			pgPasswd = configFile.getProperty("DatabasePasswd");
 			pgPort = Integer.parseInt(configFile.getProperty("DatabasePort"));
+			pgInitConn = Integer.parseInt(configFile.getProperty("DatabaseInitConnection"));
+			pgMaxConn = Integer.parseInt(configFile.getProperty("DatabaseMaxConnection"));
 			maxPacketSize = Integer.parseInt(configFile
 					.getProperty("MaxPacketSize"));
 			begChar = Byte.parseByte(configFile.getProperty("BegChar"));
@@ -185,6 +191,15 @@ public class ModConfig {
 
 	public String getServerType() {
 		return serverType;
+	}
+
+	public int getPgInitConn() {
+		return pgInitConn;
+	}
+
+
+	public int getPgMaxConn() {
+		return pgMaxConn;
 	}
 
 }

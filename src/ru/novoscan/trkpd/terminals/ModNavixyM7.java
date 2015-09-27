@@ -4,7 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -92,8 +91,6 @@ public class ModNavixyM7 implements ModConstats {
 
 	private String navDeviceStatus;
 
-	private int packetCount;
-
 	private String navGsm;
 
 	private String navHdop;
@@ -108,7 +105,7 @@ public class ModNavixyM7 implements ModConstats {
 
 	public ModNavixyM7(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
-			throws ParseException {
+			throws ParseException, IOException {
 		ModNavixyM7.conf = conf;
 		ModNavixyM7.pgcon = pgcon;
 		dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -117,51 +114,38 @@ public class ModNavixyM7 implements ModConstats {
 		this.iDs = iDs;
 		logger.debug("Read streems..");
 		int i = 0;
-		packetCount = 0;
-		try {
-			while (true) {
+		while (true) {
+			packet[i] = readByte();
+			if ((packet[i] & 0xff) == 0xd0) {
+				keepAlive[0] = packet[i];
+				i++;
 				packet[i] = readByte();
-				if ((packet[i] & 0xff) == 0xd0) {
-					keepAlive[0] = packet[i];
-					i++;
-					packet[i] = readByte();
-					if ((packet[i] & 0xff) == 0xd7) {
-						keepAlive[1] = packet[i];
-						readKeepAlive();
-						logger.debug("Is Keep Alive packet..");
-						aliveId = (keepAlive[2] & 0xff)
-								+ ((keepAlive[3] & 0xff) << 8);
-						logger.debug("Alive Id : " + aliveId);
-						deviceId = (keepAlive[7] & 0xff); // long тип
-						deviceId = keepAlive[4] + ((keepAlive[5] & 0xff) << 8)
-								+ ((keepAlive[6] & 0xff) << 16)
-								+ (deviceId << 24);
-						logger.debug("Device Id : " + deviceId);
-						sendKeepAlive();
-						readbytes = 0;
-						i = 0; // очистим массив
-					}
-				} else if (packet[i] == 0x0a) {
-					// данные
-					logger.debug("Разбор пакета данных. Размер пакета: "
-							+ packet.length);
-					parsePacket(i);
+				if ((packet[i] & 0xff) == 0xd7) {
+					keepAlive[1] = packet[i];
+					readKeepAlive();
+					logger.debug("Is Keep Alive packet..");
+					aliveId = (keepAlive[2] & 0xff)
+							+ ((keepAlive[3] & 0xff) << 8);
+					logger.debug("Alive Id : " + aliveId);
+					deviceId = (keepAlive[7] & 0xff); // long тип
+					deviceId = keepAlive[4] + ((keepAlive[5] & 0xff) << 8)
+							+ ((keepAlive[6] & 0xff) << 16) + (deviceId << 24);
+					logger.debug("Device Id : " + deviceId);
+					sendKeepAlive();
 					readbytes = 0;
-					i = 0;
-				} else {
-					i++;
+					i = 0; // очистим массив
 				}
-
+			} else if (packet[i] == 0x0a) {
+				// данные
+				logger.debug("Разбор пакета данных. Размер пакета: "
+						+ packet.length);
+				parsePacket(i);
+				readbytes = 0;
+				i = 0;
+			} else {
+				i++;
 			}
-		} catch (SocketTimeoutException e) {
-			logger.error("Close connection : " + e.getMessage());
-			logger.debug("Количество принятых пакетов : " + packetCount);
-		} catch (IOException e3) {
-			logger.warn("IO socket error : " + e3.getMessage());
-			logger.debug("Количество принятых пакетов : " + packetCount);
-		} catch (RuntimeException e4) {
-			logger.warn("Packet parse error : " + e4.getMessage());
-			logger.debug("Количество принятых пакетов : " + packetCount);
+
 		}
 	}
 
@@ -198,7 +182,6 @@ public class ModNavixyM7 implements ModConstats {
 			navDeviceStatus = m.group(12);
 			navGsm = m.group(13);
 			writeData();
-			packetCount++;
 		} else {
 			logger.warn("Данные терминала неверны : " + data);
 		}

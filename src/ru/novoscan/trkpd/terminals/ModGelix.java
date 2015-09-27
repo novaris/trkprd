@@ -39,27 +39,22 @@ public class ModGelix implements ModConstats {
 	private float readbytes = 0;
 
 	public ModGelix(DataInputStream iDs, DataOutputStream oDs,
-			BufferedReader console, ModConfig conf, TrackPgUtils pgcon) {
+			BufferedReader console, ModConfig conf, TrackPgUtils pgcon) throws IOException {
 		String request;
-		try {
-			request = console.readLine();
-			if (request != null) {
-				Matcher m = pattern.matcher(request);
-				readbytes = request.length();
-				if (m.matches()) {
-					// HTTPGelix module
-					blokid = Integer.parseInt(m.group(1));
-					keylen = Integer.parseInt(m.group(3));
-					data = m.group(5);
-					getPacket(1); // Бывает более 1 пакета?
-				} else {
-					// TCPGelix module
+		request = console.readLine();
+		if (request != null) {
+			Matcher m = pattern.matcher(request);
+			readbytes = request.length();
+			if (m.matches()) {
+				// HTTPGelix module
+				blokid = Integer.parseInt(m.group(1));
+				keylen = Integer.parseInt(m.group(3));
+				data = m.group(5);
+				getPacket(1); // Бывает более 1 пакета?
+			} else {
+				// TCPGelix module
 
-				}
 			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
 	}
 

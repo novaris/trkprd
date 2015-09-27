@@ -3,6 +3,7 @@ package ru.novoscan.trkpd;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.sql.SQLException;
 import java.text.ParseException;
 
 import org.apache.log4j.Logger;
@@ -23,7 +24,9 @@ public class TrackServerUdp implements TrackServer {
 	
 	private DatagramSocket listenSocket;
 
-	public TrackServerUdp() {
+	public TrackServerUdp(ModConfig config, TrackPgUtils pgConnect) {
+		this.pgConnect = pgConnect;
+		this.config = config;
 	}
 	@Override
 	public void setConfig(ModConfig config) {
@@ -65,6 +68,7 @@ public class TrackServerUdp implements TrackServer {
 			try {
 				logger.debug("Подключение клиента : "
 						+ dataPacket.getSocketAddress().toString());
+				pgConnect.connect();
 				int modType = config.getModType();
 				double readBytes = 0;
 				logger.debug("Тип модуля : " + config.getModType());
@@ -81,10 +85,22 @@ public class TrackServerUdp implements TrackServer {
 							modType);
 				}
 				logger.debug("Получено байт : " + readBytes);
+				pgConnect.close();
 			} catch (ParseException e) {
 				logger.error("Неподдерживаемый тип модуля : "
 						+ e.getErrorOffset());
+			} catch (SQLException e) {
+				logger.error("Ошибка БД : " + e.getMessage());
+				e.printStackTrace();
+			} catch (IOException e) {
+				logger.error("Соединение закрыто : " + e.getMessage());
+				e.printStackTrace();
 			} finally {
+				try {
+					pgConnect.close();
+				} catch (SQLException e) {
+					logger.error(e.getLocalizedMessage());
+				}
 				logger.debug("Соединение закрыто.");
 			}
 

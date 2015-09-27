@@ -11,18 +11,15 @@ import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import javax.sql.PooledConnection;
 
 import org.apache.log4j.Logger;
-import org.postgresql.ds.PGConnectionPoolDataSource;
+import org.postgresql.ds.PGPoolingDataSource;
 
 import ru.novoscan.trkpd.resources.ModConstats;
 
 public class TrackPgUtils implements ModConstats {
 
 	private static final Logger logger = Logger.getLogger(TrackPgUtils.class);
-
-	private PooledConnection pc;
 
 	private Connection db; // A connection to the database
 
@@ -51,6 +48,9 @@ public class TrackPgUtils implements ModConstats {
 	private String pgPasswd;
 
 	private String pgHost;
+
+	private final PGPoolingDataSource pgds = new PGPoolingDataSource();
+
 	
 	private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss.ms");
 
@@ -80,40 +80,22 @@ public class TrackPgUtils implements ModConstats {
 		this.dasnDateTime = new java.sql.Timestamp(dasnDateTime.getTime()); 
 	}
 
-	public TrackPgUtils() {
-
+	public TrackPgUtils(ModConfig config) throws SQLException {
+		this.setPgPasswd(config.getPgPasswd());
+		this.setPgUser(config.getPgUser());
+		this.setPgDatabaseName(config.getPgDatabaseName());
+		this.setPgHost(config.getPgHost());
+		this.setPgPort(config.getPgPort());
+		pgds.setLoginTimeout(10);
+		pgds.setPassword(getPgPasswd());
+		pgds.setUser(getPgUser());
+		pgds.setDatabaseName(getPgDatabaseName());
+		pgds.setServerName(getPgHost());
+		pgds.setPortNumber(getPgPort());
+		pgds.setInitialConnections(config.getPgInitConn());
+		pgds.setMaxConnections(config.getPgMaxConn());
 	}
 
-	public void setConfig(ModConfig config) {
-		{
-			this.setPgPasswd(config.getPgPasswd());
-			this.setPgUser(config.getPgUser());
-			this.setPgDatabaseName(config.getPgDatabaseName());
-			this.setPgHost(config.getPgHost());
-			this.setPgPort(config.getPgPort());
-		}
-
-	}
-
-	public void connect() throws ClassNotFoundException, SQLException {
-		{
-			final PGConnectionPoolDataSource pgds = new PGConnectionPoolDataSource();
-			pgds.setLoginTimeout(10);
-			pgds.setPassword(getPgPasswd());
-			pgds.setDefaultAutoCommit(true);
-			pgds.setUser(getPgUser());
-			pgds.setDatabaseName(getPgDatabaseName());
-			pgds.setServerName(getPgHost());
-			pgds.setPortNumber(getPgPort());
-			this.pc = pgds.getPooledConnection();
-			this.db = pc.getConnection();
-		}
-
-	}
-
-	public PooledConnection getPoolConnection() {
-		return pc;
-	}
 
 	public void setDataSensor(HashMap<String, String> ds, Date navDateTime) {
 		this.ds = ds;
@@ -441,13 +423,15 @@ public class TrackPgUtils implements ModConstats {
 									.longValue());
 				}
 				resultSet = ps.executeQuery();
+				db.commit();
 			}
 
 		} catch (Exception e) {
+			closeStatment();
 			logger.warn(e.getMessage());
 			throw new RuntimeException(e);
 		}
-		ps.close();
+		closeStatment();
 	}
 
 	public int getImeiModule(String imei) {
@@ -465,6 +449,7 @@ public class TrackPgUtils implements ModConstats {
 			}
 			result.close();
 			ps.close();
+			db.commit();
 		} catch (SQLException e) {
 			spmd = -1;
 		}
@@ -499,6 +484,7 @@ public class TrackPgUtils implements ModConstats {
 		}
 		command.close();
 		ps.close();
+		db.commit();
 	}
 
 	public long[] getCommandId() {
@@ -530,6 +516,7 @@ public class TrackPgUtils implements ModConstats {
 				logger.debug("SQL Statment executed");
 				result.close();
 				ps.close();
+				db.commit();
 			} finally {
 				if (result != null)
 					result.close();
@@ -573,6 +560,41 @@ public class TrackPgUtils implements ModConstats {
 
 	public void setPgPort(int pgPort) {
 		this.pgPort = pgPort;
+	}
+	
+	private void closeStatment() {
+		try {
+			if(this.ps != null && !this.ps.isClosed()) {
+				ps.close();
+			}
+		} catch (SQLException e) {
+
+		}
+	}
+	private void closeExexute() {
+		try {
+			if(this.resultSet != null && !this.resultSet.isClosed()) {
+				resultSet.close();
+			}
+			if(this.result != null && !this.result.isClosed()) {
+				result.close();
+			}
+		} catch (SQLException e) {
+
+		}
+	}
+	
+	public void close() throws SQLException {
+		closeExexute();
+		closeStatment();
+		if (this.db != null && !this.db.isClosed()) {
+			this.db.rollback();
+			this.db.close();
+		}
+	}
+
+	public void connect() throws SQLException {
+		this.db = this.pgds.getConnection();
 	}
 
 }

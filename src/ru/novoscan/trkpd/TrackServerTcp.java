@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.text.ParseException;
 
 import org.apache.log4j.Logger;
@@ -41,7 +42,9 @@ public class TrackServerTcp implements TrackServer {
 
 	private TrackPgUtils pgConnect;
 
-	public TrackServerTcp() {
+	public TrackServerTcp(ModConfig config, TrackPgUtils pgConnect) {
+		this.pgConnect = pgConnect;
+		this.config = config;
 	}
 
 	@Override
@@ -120,6 +123,7 @@ public class TrackServerTcp implements TrackServer {
 			try {
 				logger.info("Подключение клиента : "
 						+ clientSocket.getRemoteSocketAddress().toString());
+				pgConnect.connect();
 				int modType = config.getModType();
 				logger.debug("Тип модуля : " + config.getModType());
 				if (modType == TERM_TYPE_ANY) {
@@ -208,9 +212,16 @@ public class TrackServerTcp implements TrackServer {
 							modType);
 				}
 				logger.debug("Получено байт : " + readBytes);
+				pgConnect.close();
 			} catch (ParseException e) {
 				logger.error("Неподдерживаемый тип модуля : "
 						+ e.getErrorOffset());
+			} catch (SQLException e) {
+				logger.error("Ошибка БД : " + e.getMessage());
+				e.printStackTrace();
+			} catch (IOException e) {
+				logger.error("Соединение закрыто : " + e.getMessage());
+				e.printStackTrace();
 			} finally {
 				try {
 					dataInputStream.close();
@@ -218,8 +229,9 @@ public class TrackServerTcp implements TrackServer {
 					bufferedReader.close();
 					inputStreamReader.close();
 					clientSocket.close();
+					pgConnect.close();
 					logger.debug("Соединение закрыто");
-				} catch (IOException e) {
+				} catch (IOException | SQLException e) {
 					logger.error("Соединение закрыто : " + e.getMessage());
 				}
 			}

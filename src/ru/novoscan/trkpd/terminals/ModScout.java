@@ -4,7 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.SocketTimeoutException;
 import java.util.HashMap;
 
 import org.apache.log4j.Logger;
@@ -110,61 +109,56 @@ public class ModScout {
 	private HashMap<String, String> map = new HashMap<String, String>();
 
 	public ModScout(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
+			throws IOException {
 		int cread;
 		String slog = "";
 		packet = new int[conf.getMaxSize()];
-		try {
-			while ((cread = unbconsole.read()) != -1) {
-				logger.debug("Read " + Integer.toHexString(cread));
-				packet[readbytes] = cread;
-				fullreadbytes = fullreadbytes + 1;
-				readbytes = readbytes + 1;
-				slog = slog + Integer.toHexString(cread);
-				if (readbytes == 1) {
-					scoutPacketType = cread;
-					if (scoutPacketType == 0x01) {
-						// scoutPacketSize = 26;
-						scoutReply = new int[6];
-						scoutReply[0] = 0xf2;
-					} else if (scoutPacketType == 0x40) {
-						// scoutPacketSize = 49;
-						scoutReply = new int[5];
-						scoutReply[0] = 0xf2;
-					} else {
-						logger.error("Unknown protocol type "
-								+ Integer.toHexString(scoutPacketType));
-						return;
-					}
-					logger.debug("Protocol type is "
-							+ Integer.toHexString(scoutPacketType));
-				} else if (readbytes == scoutPacketType) {
-					slog = "";
-					scoutReply[1] = packet[1];
-					scoutReply[2] = packet[2];
-					if (scoutPacketType == 0x01) {
-						scoutReply[3] = 0x00;
-						scoutReply[4] = 0x00;
-						scoutReply[5] = 0x00;
-					} else if (scoutPacketType == 0x40) {
-						scoutReply[3] = 0x00;
-						scoutReply[4] = 0x00;
-					}
-					packets = packets + 1;
-					parsePacket();
-					readbytes = 0; // сбросим счётчик данных внутри пакета
-					logger.debug("Paket number " + packets + " data : " + slog);
-					map.clear();
-				}
 
+		while ((cread = unbconsole.read()) != -1) {
+			logger.debug("Read " + Integer.toHexString(cread));
+			packet[readbytes] = cread;
+			fullreadbytes = fullreadbytes + 1;
+			readbytes = readbytes + 1;
+			slog = slog + Integer.toHexString(cread);
+			if (readbytes == 1) {
+				scoutPacketType = cread;
+				if (scoutPacketType == 0x01) {
+					// scoutPacketSize = 26;
+					scoutReply = new int[6];
+					scoutReply[0] = 0xf2;
+				} else if (scoutPacketType == 0x40) {
+					// scoutPacketSize = 49;
+					scoutReply = new int[5];
+					scoutReply[0] = 0xf2;
+				} else {
+					logger.error("Unknown protocol type "
+							+ Integer.toHexString(scoutPacketType));
+					return;
+				}
+				logger.debug("Protocol type is "
+						+ Integer.toHexString(scoutPacketType));
+			} else if (readbytes == scoutPacketType) {
+				slog = "";
+				scoutReply[1] = packet[1];
+				scoutReply[2] = packet[2];
+				if (scoutPacketType == 0x01) {
+					scoutReply[3] = 0x00;
+					scoutReply[4] = 0x00;
+					scoutReply[5] = 0x00;
+				} else if (scoutPacketType == 0x40) {
+					scoutReply[3] = 0x00;
+					scoutReply[4] = 0x00;
+				}
+				packets = packets + 1;
+				parsePacket();
+				readbytes = 0; // сбросим счётчик данных внутри пакета
+				logger.debug("Paket number " + packets + " data : " + slog);
+				map.clear();
 			}
-			logger.debug("Close reader console");
-		} catch (SocketTimeoutException e) {
-			logger.error("Close connection : " + e.getMessage());
-			logger.error("Read packet data : " + slog);
-		} catch (IOException e) {
-			logger.warn("IO socket error : " + e.getMessage());
+
 		}
+		logger.debug("Close reader console");
 	}
 
 	public float getReadBytes() {

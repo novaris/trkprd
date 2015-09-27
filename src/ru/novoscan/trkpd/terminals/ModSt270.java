@@ -4,7 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -80,85 +79,77 @@ public class ModSt270 implements ModConstats {
 
 	public ModSt270(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
-			throws ParseException {
+			throws ParseException, IOException {
 		maxPacketSize = conf.getMaxSize();
-		try {
-			int cread;
-			String slog = "";
-			packetSize = 0;
-			while ((cread = console.read()) != -1) {
-				readbytes = readbytes + 1;
-				if (packetSize > maxPacketSize) {
-					logger.error("Over size : " + packetSize);
-					map.clear();
-					return;
-				} else if (cread == 0x0d) {
-					// System.out.println("Data : " + slog);
-					Matcher m = patternSTT.matcher(slog);
-					if (m.matches()) {
-						/*
-						 * String vehicleId; int dasnUid; String dasnDateTime;
-						 * float dasnLatitude; float dasnLongitude; int
-						 * dasnStatus; int dasnSatUsed; int dasnZoneAlarm; int
-						 * dasnMacroId; int dasnMacroSrc; float dasnSog; float
-						 * dasnCource; float dasnHdop; float dasnHgeo; float
-						 * dasnHmet; int dasnGpio; int dasnAdc; float dasnTemp;
-						 * int8 i_spmt_id;
-						 */
-						map.put("vehicleId", m.group(2));
-						map.put("dasnUid", m.group(2));
-						map.put("dasnLatitude", m.group(7));
-						map.put("dasnLongitude", m.group(8));
-						map.put("dasnStatus", m.group(13));
-						map.put("dasnSatUsed", m.group(11));
-						map.put("dasnZoneAlarm", null);
-						map.put("dasnMacroId", null);
-						map.put("dasnMacroSrc", null);
-						map.put("dasnSog", m.group(9));
-						map.put("dasnCource", m.group(10));
-						map.put("dasnHdop", m.group(21));
-						map.put("dasnHgeo", m.group(14));
-						map.put("dasnHmet", null);
-						map.put("dasnGpio", m.group(19));
-						map.put("dasnAdc", m.group(20));
-						map.put("dasnTemp", null);
-						map.put("i_spmt_id",
-								Integer.toString(conf.getModType()));
-						map.put("dasnXML", "<xml><gl>" + m.group(12)
-								+ "</gl></xml>");
-						// запись в БД
 
-						pgcon.setDataSensor(map,
-								sdf.parse(m.group(4) + m.group(5)));
-						try {
-							pgcon.addDataSensor();
-							logger.debug("Writing Database : " + slog);
-						} catch (SQLException e) {
-							logger.warn("Error Writing Database : "
-									+ e.getMessage());
-						}
-						map.clear();
-						slog = "";
-						packetSize = 0;
-					} else {
-						logger.error("Unknown packet type : " + slog);
-						map.clear();
-						slog = "";
-						packetSize = 0;
+		int cread;
+		String slog = "";
+		packetSize = 0;
+		while ((cread = console.read()) != -1) {
+			readbytes = readbytes + 1;
+			if (packetSize > maxPacketSize) {
+				logger.error("Over size : " + packetSize);
+				map.clear();
+				return;
+			} else if (cread == 0x0d) {
+				// System.out.println("Data : " + slog);
+				Matcher m = patternSTT.matcher(slog);
+				if (m.matches()) {
+					/*
+					 * String vehicleId; int dasnUid; String dasnDateTime; float
+					 * dasnLatitude; float dasnLongitude; int dasnStatus; int
+					 * dasnSatUsed; int dasnZoneAlarm; int dasnMacroId; int
+					 * dasnMacroSrc; float dasnSog; float dasnCource; float
+					 * dasnHdop; float dasnHgeo; float dasnHmet; int dasnGpio;
+					 * int dasnAdc; float dasnTemp; int8 i_spmt_id;
+					 */
+					map.put("vehicleId", m.group(2));
+					map.put("dasnUid", m.group(2));
+					map.put("dasnLatitude", m.group(7));
+					map.put("dasnLongitude", m.group(8));
+					map.put("dasnStatus", m.group(13));
+					map.put("dasnSatUsed", m.group(11));
+					map.put("dasnZoneAlarm", null);
+					map.put("dasnMacroId", null);
+					map.put("dasnMacroSrc", null);
+					map.put("dasnSog", m.group(9));
+					map.put("dasnCource", m.group(10));
+					map.put("dasnHdop", m.group(21));
+					map.put("dasnHgeo", m.group(14));
+					map.put("dasnHmet", null);
+					map.put("dasnGpio", m.group(19));
+					map.put("dasnAdc", m.group(20));
+					map.put("dasnTemp", null);
+					map.put("i_spmt_id", Integer.toString(conf.getModType()));
+					map.put("dasnXML", "<xml><gl>" + m.group(12)
+							+ "</gl></xml>");
+					// запись в БД
+
+					pgcon.setDataSensor(map, sdf.parse(m.group(4) + m.group(5)));
+					try {
+						pgcon.addDataSensor();
+						logger.debug("Writing Database : " + slog);
+					} catch (SQLException e) {
+						logger.warn("Error Writing Database : "
+								+ e.getMessage());
 					}
+					map.clear();
+					slog = "";
+					packetSize = 0;
 				} else {
-					packetSize = packetSize + 1;
-					slog = slog + (char) cread;
-					logger.debug("Data : " + (char) cread);
+					logger.error("Unknown packet type : " + slog);
+					map.clear();
+					slog = "";
+					packetSize = 0;
 				}
-
+			} else {
+				packetSize = packetSize + 1;
+				slog = slog + (char) cread;
+				logger.debug("Data : " + (char) cread);
 			}
-			logger.debug("Close reader console");
-		} catch (SocketTimeoutException e) {
-			logger.error("Close connection : " + e.getMessage());
-		} catch (IOException e) {
-			logger.warn("IO socket error : " + e.getMessage());
+
 		}
+		logger.debug("Close reader console");
 	}
 
 	public float getReadBytes() {

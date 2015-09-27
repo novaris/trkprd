@@ -4,7 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -173,7 +172,7 @@ public class ModSignal implements ModConstats {
 
 	public ModSignal(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
-			throws ParseException {
+			throws ParseException, IOException {
 		// int cread;
 		this.conf = conf;
 		this.pgcon = pgcon;
@@ -184,83 +183,71 @@ public class ModSignal implements ModConstats {
 															// считается
 		packet = new int[packetDataLength]; // пакет с нулевого считается
 		fullreadbytes = 0;
-		try {
-			while (true) {
-				for (int i = 0; i < PACKET_HANDSHAKE_LENGTH; i++) {
-					packetHeader[i] = readByte();
-				}
-				// Обработаем заголовок
-				parseHeader();
-				if (packetSize >= CMD_SIGNATURE_LENGTH) {
-					String cmd = "";
-					// Считаем данные
-					for (int i = 0; i < packetSize; i++) {
-						packet[i] = readByte();
-					}
-					// Определим тип команд
-					readCMDSignature();
-					if (cmdSignature.equals(SIGNATURE_S)) {
-						// Пакет первичной инициализации
-						parseIMEI();
-						if (navIMEI.length() == 0) {
-							// Ошибка не определён IMEI
-							logger.error("Не определён IMEI");
-							throw new RuntimeException(
-									"Неверные данные пакета HANDSHAKE : IMEI не определён");
-						}
-						cmd = "*<S";
-					} else if (cmdSignature.equals(SIGNATURE_T)) {
-						// Телеметрические записи
-						parseDataTypeT();
-						cmd = "*<T" + (char) dataIndex;
-					} else if (cmdSignature.equals(SIGNATURE_A)) {
-						// Архивные данные
-						parseDataTypeA();
-						cmd = "*<A" + (char) dataBlockCount;
-					}
-					// ответим
-					/*
-					 * Формат ответа: dataSignature +navServerID +navDeviceID
-					 * +длина_сигнатуры_запроса +КонтрольнаяСуммаОтвета
-					 * +КонтрольнаяСумма15байтЗаголовка +Ответ
-					 */
-					sendResponce(oDs, cmd);
-					readbytes = 0;
-				}
-				/*
-				 * // Сохраним в БД данные map.put("vehicleId",
-				 * String.valueOf(navDeviceID)); map.put("dasnUid",
-				 * String.valueOf(navDeviceID)); map.put("dasnLatitude",
-				 * String.valueOf(navLatitude)); map.put("dasnLongitude",
-				 * String.valueOf(navLongitude)); map.put("dasnStatus",
-				 * Integer.toString(navDeviceStatus)); map.put("dasnSatUsed",
-				 * Integer.toString(navSatellitesCount));
-				 * map.put("dasnZoneAlarm", null); map.put("dasnMacroId", null);
-				 * map.put("dasnMacroSrc", null); map.put("dasnSog",
-				 * String.valueOf(navSpeed)); map.put("dasnCource",
-				 * String.valueOf(navCource)); map.put("dasnHdop", null);
-				 * map.put("dasnHgeo", null); map.put("dasnHmet", null);
-				 * map.put("dasnGpio", null); map.put("dasnAdc",
-				 * String.valueOf(navPower)); map.put("dasnTemp",
-				 * String.valueOf(navTemp)); map.put("i_spmt_id",
-				 * Integer.toString(conf.getModType())); // запись в БД
-				 * pgcon.setDataSensor(map); try { pgcon.addDataSensor();
-				 * logger.debug("Write Database OK"); } catch (SQLException e) {
-				 * logger.warn("Error Writing Database : " + e.getMessage()); }
-				 * map.clear();
-				 */
-				// sendCRC(oDs, navCRC);
-			}
 
-		} catch (SocketTimeoutException e) {
-			logger.error("Close connection : " + e.getMessage());
-			logger.debug("Количество принятых пакетов : " + packetCount);
-		} catch (IOException e3) {
-			logger.warn("IO socket error : " + e3.getMessage());
-			logger.debug("Количество принятых пакетов : " + packetCount);
-		} catch (RuntimeException e4) {
-			logger.warn("Packet parse error : " + e4.getMessage());
-			logger.debug("Количество принятых пакетов : " + packetCount);
+		while (true) {
+			for (int i = 0; i < PACKET_HANDSHAKE_LENGTH; i++) {
+				packetHeader[i] = readByte();
+			}
+			// Обработаем заголовок
+			parseHeader();
+			if (packetSize >= CMD_SIGNATURE_LENGTH) {
+				String cmd = "";
+				// Считаем данные
+				for (int i = 0; i < packetSize; i++) {
+					packet[i] = readByte();
+				}
+				// Определим тип команд
+				readCMDSignature();
+				if (cmdSignature.equals(SIGNATURE_S)) {
+					// Пакет первичной инициализации
+					parseIMEI();
+					if (navIMEI.length() == 0) {
+						// Ошибка не определён IMEI
+						logger.error("Не определён IMEI");
+						throw new RuntimeException(
+								"Неверные данные пакета HANDSHAKE : IMEI не определён");
+					}
+					cmd = "*<S";
+				} else if (cmdSignature.equals(SIGNATURE_T)) {
+					// Телеметрические записи
+					parseDataTypeT();
+					cmd = "*<T" + (char) dataIndex;
+				} else if (cmdSignature.equals(SIGNATURE_A)) {
+					// Архивные данные
+					parseDataTypeA();
+					cmd = "*<A" + (char) dataBlockCount;
+				}
+				// ответим
+				/*
+				 * Формат ответа: dataSignature +navServerID +navDeviceID
+				 * +длина_сигнатуры_запроса +КонтрольнаяСуммаОтвета
+				 * +КонтрольнаяСумма15байтЗаголовка +Ответ
+				 */
+				sendResponce(oDs, cmd);
+				readbytes = 0;
+			}
+			/*
+			 * // Сохраним в БД данные map.put("vehicleId",
+			 * String.valueOf(navDeviceID)); map.put("dasnUid",
+			 * String.valueOf(navDeviceID)); map.put("dasnLatitude",
+			 * String.valueOf(navLatitude)); map.put("dasnLongitude",
+			 * String.valueOf(navLongitude)); map.put("dasnStatus",
+			 * Integer.toString(navDeviceStatus)); map.put("dasnSatUsed",
+			 * Integer.toString(navSatellitesCount)); map.put("dasnZoneAlarm",
+			 * null); map.put("dasnMacroId", null); map.put("dasnMacroSrc",
+			 * null); map.put("dasnSog", String.valueOf(navSpeed));
+			 * map.put("dasnCource", String.valueOf(navCource));
+			 * map.put("dasnHdop", null); map.put("dasnHgeo", null);
+			 * map.put("dasnHmet", null); map.put("dasnGpio", null);
+			 * map.put("dasnAdc", String.valueOf(navPower)); map.put("dasnTemp",
+			 * String.valueOf(navTemp)); map.put("i_spmt_id",
+			 * Integer.toString(conf.getModType())); // запись в БД
+			 * pgcon.setDataSensor(map); try { pgcon.addDataSensor();
+			 * logger.debug("Write Database OK"); } catch (SQLException e) {
+			 * logger.warn("Error Writing Database : " + e.getMessage()); }
+			 * map.clear();
+			 */
+			// sendCRC(oDs, navCRC);
 		}
 
 	}

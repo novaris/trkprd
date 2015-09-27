@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
-import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -49,7 +48,7 @@ public class ModXml implements ModConstats {
 
 	public ModXml(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
-			throws ParseException {
+			throws ParseException, IOException {
 		String slog = "";
 		BufferedReader binstream = new BufferedReader(
 				new InputStreamReader(iDs));
@@ -76,11 +75,6 @@ public class ModXml implements ModConstats {
 					}
 				}
 			}
-		} catch (SocketTimeoutException e) {
-			logger.error("Close connection : " + e.getMessage());
-			logger.error("Read packet data : " + slog);
-		} catch (IOException e) {
-			logger.warn("IO socket error : " + e.getMessage());
 		} catch (XPathExpressionException e) {
 			logger.error("Close connection : " + e.getMessage());
 			logger.error("Read packet data : " + slog);

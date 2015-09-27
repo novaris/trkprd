@@ -5,7 +5,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
-import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.Date;
@@ -71,7 +70,7 @@ public class ModScoutOpen implements ModConstats {
 	private HashMap<Integer, BigInteger> values = new HashMap<>();
 
 	public ModScoutOpen(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) throws IOException, ParseException {
 		this.conf = conf;
 		this.pgcon = pgcon;
 		this.oDs = oDs;
@@ -79,7 +78,6 @@ public class ModScoutOpen implements ModConstats {
 		logger.debug("Read streems..");
 		fullreadbytes = 0;
 		readbytes = 0;
-		try {
 			while (true) {
 				int packetCount = 0;
 				for (int i = 0; i < INT32; i++) {
@@ -182,17 +180,6 @@ public class ModScoutOpen implements ModConstats {
 					writeData();
 				}
 
-			}
-		} catch (ArrayIndexOutOfBoundsException e) {
-			logger.error("ArrayIndexOutOfBoundsException : " + e.getMessage());
-		} catch (SocketTimeoutException e) {
-			logger.error("Close connection : " + e.getMessage());
-		} catch (IOException e) {
-			logger.warn("IO socket error : " + e.getMessage());
-		} catch (RuntimeException e) {
-			logger.error("Runtime Excepption : " + e.getMessage());
-		} catch (Exception e) {
-			logger.fatal("Exception : " + e.toString());
 		}
 	}
 

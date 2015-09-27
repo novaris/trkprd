@@ -47,7 +47,7 @@ public class ModTeltonikaFm implements ModConstats {
 	private final static int TYPE_DATA_ACK = 0x01;
 
 	private final static int TYPE_ACK = 0x02;
-	
+
 	private final static int ADC_KEY = 66;
 
 	private byte[] packetData;
@@ -101,7 +101,7 @@ public class ModTeltonikaFm implements ModConstats {
 	private HashMap<Integer, BigInteger> values = new HashMap<>();
 
 	public ModTeltonikaFm(DatagramPacket dataPacket,
-			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon) {
+			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon) throws IOException {
 		this.conf = conf;
 		this.pgcon = pgcon;
 		this.dataPacket = dataPacket;
@@ -111,40 +111,36 @@ public class ModTeltonikaFm implements ModConstats {
 		fullreadbytes = 0;
 		readbytes = 0;
 		packetData = dataPacket.getData();
-		try {
-			int packetLength = (readByte() << 8) + readByte();
-			logger.debug("Lenght : " + packetLength);
-			if (packetLength > dataPacket.getLength()
-					|| packetLength > maxPacketSize) {
-				throw new RuntimeErrorException(new Error("Lenght Error"),
-						"Неверный размер пакета.");
-			}
-			navPacketId = (readByte() << 8) + readByte();
-			logger.debug("Id : " + navPacketId);
-			navPacketType = readByte();
-			logger.debug("Type : " + navPacketType);
-			if (navPacketType == TYPE_DATA_ACK
-					|| navPacketType == TYPE_DATA_NOT_ACK) {
-				parsePacket();
-				if (avlDataCount == (readByte() + (readByte() << 8))) {
-					logger.debug("Успешная обработка : " + avlDataCount
-							+ " пакетов данных.");
-
-				} else {
-					logger.error("Ошибка! Количество обработанных пакетов не равно количеству зявленных : "
-							+ avlDataCount);
-				}
-			} else if (navPacketType == TYPE_ACK) {
-				logger.debug("Пакет ACK.");
-			}
-			if (navPacketType == TYPE_DATA_ACK) {
-				sendAck();
-			}
-
-			fullreadbytes = packetLength;
-		} catch (Exception e) {
-			logger.warn("Ошибка : " + e.getMessage());
+		int packetLength = (readByte() << 8) + readByte();
+		logger.debug("Lenght : " + packetLength);
+		if (packetLength > dataPacket.getLength()
+				|| packetLength > maxPacketSize) {
+			throw new RuntimeErrorException(new Error("Lenght Error"),
+					"Неверный размер пакета.");
 		}
+		navPacketId = (readByte() << 8) + readByte();
+		logger.debug("Id : " + navPacketId);
+		navPacketType = readByte();
+		logger.debug("Type : " + navPacketType);
+		if (navPacketType == TYPE_DATA_ACK
+				|| navPacketType == TYPE_DATA_NOT_ACK) {
+			parsePacket();
+			if (avlDataCount == (readByte() + (readByte() << 8))) {
+				logger.debug("Успешная обработка : " + avlDataCount
+						+ " пакетов данных.");
+
+			} else {
+				logger.error("Ошибка! Количество обработанных пакетов не равно количеству зявленных : "
+						+ avlDataCount);
+			}
+		} else if (navPacketType == TYPE_ACK) {
+			logger.debug("Пакет ACK.");
+		}
+		if (navPacketType == TYPE_DATA_ACK) {
+			sendAck();
+		}
+
+		fullreadbytes = packetLength;
 
 	}
 
@@ -184,7 +180,7 @@ public class ModTeltonikaFm implements ModConstats {
 					// map.put("dasnGpio", String.valueOf(navGpio));
 					// map.put("dasnAdc", String.valueOf(navAdc));
 					map.put("dasnGpio", null);
-					if(values.containsKey(ADC_KEY)) {
+					if (values.containsKey(ADC_KEY)) {
 						map.put("dasnAdc", values.get(ADC_KEY).toString());
 					} else {
 						map.put("dasnAdc", null);

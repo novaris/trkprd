@@ -5,10 +5,8 @@ package ru.novoscan.trkpd.terminals;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -97,209 +95,190 @@ public class ModUtp5 implements ModConstats {
 
 	public ModUtp5(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
-			throws ParseException {
+			throws ParseException, IOException {
 		int cread;
 		packetLength = packetDataLength;
 		packet = new int[packetDataLength * 2]; // пакет с нулевого считается
 		maxPacketSize = conf.getMaxSize();
 		navPacketSize = conf.getMaxSize() + 1;
-		try {
-			// Читаем первый пакет и определяем IMSI
-			readFirstPacket(iDs, oDs, pgcon);
-			packetCount = 1;
-			readbytes = 0;
-			while (true) {
-				while ((cread = iDs.readByte()) != -1) {
-					fullreadbytes = fullreadbytes + 1;
-					if (readbytes > maxPacketSize) {
-						logger.error("Over size " + maxPacketSize);
-						map.clear();
-						return;
-					} else {
-						/*
-						 * String vehicleId; int dasnUid; String dasnDateTime;
-						 * float dasnLatitude; float dasnLongitude; int
-						 * dasnStatus; int dasnSatUsed; int dasnZoneAlarm; int
-						 * dasnMacroId; int dasnMacroSrc; float dasnSog; float
-						 * dasnCource; float dasnHdop; float dasnHgeo; float
-						 * dasnHmet; int dasnGpio; int dasnAdc; float dasnTemp;
-						 * int8 i_spmt_id;
-						 */
-
-						/*
-						 * поле и его тип описание смещение (байт) размер (байт)
-						 * unsigned int DeviceID Идентификатор устройства 0 2
-						 * unsigned char Size Размер пакета в байтах 2 1
-						 * unsigned int GPS_pntr Текущий номер записываемой
-						 * точки 3 2 unsigned int GPRS_pntr Текущий номер
-						 * передаваемой точки 5 2 unsigned char SoftVersion
-						 * Версия FirmWare 7 1 unsigned int Status Состояние
-						 * устройства, события 8 2 unsigned long Acc Ускорение:
-						 * по байтам Axyz, Az, Ay, Ax 10 4 unsigned int pin[0]
-						 * Значение АЦП на входе IN0 в мВ 14 2 unsigned int
-						 * pin[1] Значение АЦП на входе IN1 в мВ 16 2 unsigned
-						 * int pin[2] Значение АЦП на входе IN2 в мВ 18 2
-						 * unsigned int pin[3] Значение АЦП на входе IN3 в мВ 20
-						 * 2 unsigned int pin[4] Значение АЦП на входе IN4 в мВ
-						 * 22 2 unsigned int pin[5] Значение АЦП на входе IN5 в
-						 * мВ 24 2 unsigned char PinSet Значения выходов, биты
-						 * 0..5 26 1 unsigned int Power Напряжение питания в мВ
-						 * 27 2 unsigned int Battery Напряжение на аккумуляторе
-						 * в мВ 29 2 unsigned char NavValid GPS: 0-координаты
-						 * верны, >0 - не верны 31 1 unsigned long Time Время по
-						 * Гринвичу 32 4 unsigned long Date Дата по Гринвичу 36
-						 * 4 float Latitude широта 40 4 float Longitude долгота
-						 * 44 4 float Height высота 48 4 float Speed Скорость в
-						 * км/ч 52 4 float Course Направление в градусах 56 4
-						 * float HDOP Точность 60 4 unsigned char
-						 * SatellitesCount Количество спутников 64 1 unsigned
-						 * char crc CRC, xor от 0 до последнего байта 65 1
-						 */
-
-						logger.debug("Packet [" + readbytes + "] : "
-								+ Integer.toHexString(cread));
-						if (readbytes == (packetLength - 1)) {
-							packet[readbytes] = cread;
-							if (readbytes == (packetDataLength - 1)) {
-								packetCount = packetCount + 1;
-								logger.debug("Parsing packet : " + packetCount);
-								parsePacket();
-							} else {
-								logger.debug("Not Parsing packet : "
-										+ (packetCount + 1));
-							}
-
-							if (navSoftVersion == 0xA4
-									&& (navLatitude != 0 && navLongitude != 0)
-									&& navValid == 0
-									&& navPacketSize == packetDataLength) {
-								map.put("vehicleId",
-										Integer.toString(navDeviceID));
-								map.put("dasnUid",
-										Integer.toString(navDeviceID));
-								map.put("dasnLatitude",
-										String.valueOf(navLatitude));
-								map.put("dasnLongitude",
-										String.valueOf(navLongitude));
-								map.put("dasnStatus",
-										Integer.toString(navDeviceStatus));
-								map.put("dasnSatUsed",
-										Integer.toString(navSatellitesCount));
-								map.put("dasnZoneAlarm", null);
-								map.put("dasnMacroId", null);
-								map.put("dasnMacroSrc", null);
-								map.put("dasnSog", String.valueOf(navSpeed));
-								map.put("dasnCource", String.valueOf(navCource));
-								map.put("dasnHdop", String.valueOf(navHdop));
-								map.put("dasnHgeo", String.valueOf(navHeight));
-								map.put("dasnHmet", null);
-								map.put("dasnGpio", null);
-								map.put("dasnAdc", Float.toString(navPower));
-								map.put("dasnTemp", null);
-								map.put("i_spmt_id",
-										Integer.toString(conf.getModType()));
-								map.put("dasnXML", "<xml><acs>" + navAcs
-										+ "</acs><pw>" + navBatt
-										+ "</pw></xml>");
-								// запись в БД
-
-								pgcon.setDataSensor(
-										map,
-										sdf.parse(utl.formatDate((int) navDate)
-												+ utl.cTime((int) navTime)));
-								try {
-									pgcon.addDataSensor();
-									logger.debug("Write Database OK");
-								} catch (SQLException e) {
-									logger.warn("Error Writing Database : "
-											+ e.getMessage());
-								}
-								map.clear();
-							}
-							readbytes = 0;
-						} else {
-							packet[readbytes] = cread;
-							if (readbytes == 2) {
-								navPacketSize = 0x000000FF & packet[readbytes];
-								if (navPacketSize == packetDataLength
-										|| navPacketSize == (packetDataLength * 2)) {
-									packetLength = navPacketSize;
-									logger.debug("Packet Length : "
-											+ navPacketSize);
-								} else {
-									logger.debug("Incorrect Packet Length : "
-											+ navPacketSize + " : "
-											+ packetDataLength);
-									packetLength = packetDataLength;
-									getAllPacketOK = "***" + packetCount
-											+ "*\r\n";
-									logger.debug("Send " + getAllPacketOK);
-									oDs.writeBytes(getAllPacketOK);
-									return;
-								}
-
-							}
-							readbytes = readbytes + 1;
-						}
-					}
-				}
-				logger.debug("Close reader console");
-				logger.debug("Reading packet count : " + packetCount);
-				// ответим солько пакетов прочитали
-				getAllPacketOK = "***" + packetCount + "*\r\n";
-				logger.debug("Send " + getAllPacketOK);
-				oDs.writeBytes(getAllPacketOK);
-				oDs.flush();
-				// обработаем команды из очереди команд для данного блока
-				try {
-					logger.debug("Getting command");
-					pgcon.getCommand(Integer.toString(navDeviceID),
-							conf.getModType());
-					long[] cmdIdTab = pgcon.getCommandId();
-					int commandCount = 0;
-					for (int i = 0; i < cmdIdTab.length; i++) {
-						long cmdId = cmdIdTab[i];
-						String cmdString = pgcon.getCommandString(i);
-						if (cmdString != null) {
-							logger.debug("Send command to device : "
-									+ cmdString);
-							// Обработка ответа до 0x0d 0x0a
-							String cmdRes;
-							try {
-								oDs.writeChars(cmdString + "\r\n");
-								logger.debug("Change status CMD in database : CMD_OK");
-								oDs.flush();
-								cmdRes = getCmdResult(iDs, oDs, pgcon);
-								pgcon.setCommandStatus(cmdId, "CMD_OK", cmdRes);
-							} catch (IOException e1) {
-								logger.error("Error Send Command " + cmdString
-										+ " : " + e1.getMessage());
-							}
-
-							commandCount = commandCount + 1;
-						}
-					}
-					if (commandCount > 0) {
-						logger.debug("Sending " + commandCount + " command");
-					}
-				} catch (SQLException m) {
-					logger.warn("Error Get Command : " + m.getMessage());
-				}
-				if (readbytes > 0) {
-					// Некорректно закрыт канал чтения есть непрочитанные байты
-					// Закрываем соединение.
-					logger.error("Buffer length incorrect : " + readbytes);
-					logger.debug("Close connection.");
+		// Читаем первый пакет и определяем IMSI
+		readFirstPacket(iDs, oDs, pgcon);
+		packetCount = 1;
+		readbytes = 0;
+		while (true) {
+			while ((cread = iDs.readByte()) != -1) {
+				fullreadbytes = fullreadbytes + 1;
+				if (readbytes > maxPacketSize) {
+					logger.error("Over size " + maxPacketSize);
+					map.clear();
 					return;
+				} else {
+					/*
+					 * String vehicleId; int dasnUid; String dasnDateTime; float
+					 * dasnLatitude; float dasnLongitude; int dasnStatus; int
+					 * dasnSatUsed; int dasnZoneAlarm; int dasnMacroId; int
+					 * dasnMacroSrc; float dasnSog; float dasnCource; float
+					 * dasnHdop; float dasnHgeo; float dasnHmet; int dasnGpio;
+					 * int dasnAdc; float dasnTemp; int8 i_spmt_id;
+					 */
+
+					/*
+					 * поле и его тип описание смещение (байт) размер (байт)
+					 * unsigned int DeviceID Идентификатор устройства 0 2
+					 * unsigned char Size Размер пакета в байтах 2 1 unsigned
+					 * int GPS_pntr Текущий номер записываемой точки 3 2
+					 * unsigned int GPRS_pntr Текущий номер передаваемой точки 5
+					 * 2 unsigned char SoftVersion Версия FirmWare 7 1 unsigned
+					 * int Status Состояние устройства, события 8 2 unsigned
+					 * long Acc Ускорение: по байтам Axyz, Az, Ay, Ax 10 4
+					 * unsigned int pin[0] Значение АЦП на входе IN0 в мВ 14 2
+					 * unsigned int pin[1] Значение АЦП на входе IN1 в мВ 16 2
+					 * unsigned int pin[2] Значение АЦП на входе IN2 в мВ 18 2
+					 * unsigned int pin[3] Значение АЦП на входе IN3 в мВ 20 2
+					 * unsigned int pin[4] Значение АЦП на входе IN4 в мВ 22 2
+					 * unsigned int pin[5] Значение АЦП на входе IN5 в мВ 24 2
+					 * unsigned char PinSet Значения выходов, биты 0..5 26 1
+					 * unsigned int Power Напряжение питания в мВ 27 2 unsigned
+					 * int Battery Напряжение на аккумуляторе в мВ 29 2 unsigned
+					 * char NavValid GPS: 0-координаты верны, >0 - не верны 31 1
+					 * unsigned long Time Время по Гринвичу 32 4 unsigned long
+					 * Date Дата по Гринвичу 36 4 float Latitude широта 40 4
+					 * float Longitude долгота 44 4 float Height высота 48 4
+					 * float Speed Скорость в км/ч 52 4 float Course Направление
+					 * в градусах 56 4 float HDOP Точность 60 4 unsigned char
+					 * SatellitesCount Количество спутников 64 1 unsigned char
+					 * crc CRC, xor от 0 до последнего байта 65 1
+					 */
+
+					logger.debug("Packet [" + readbytes + "] : "
+							+ Integer.toHexString(cread));
+					if (readbytes == (packetLength - 1)) {
+						packet[readbytes] = cread;
+						if (readbytes == (packetDataLength - 1)) {
+							packetCount = packetCount + 1;
+							logger.debug("Parsing packet : " + packetCount);
+							parsePacket();
+						} else {
+							logger.debug("Not Parsing packet : "
+									+ (packetCount + 1));
+						}
+
+						if (navSoftVersion == 0xA4
+								&& (navLatitude != 0 && navLongitude != 0)
+								&& navValid == 0
+								&& navPacketSize == packetDataLength) {
+							map.put("vehicleId", Integer.toString(navDeviceID));
+							map.put("dasnUid", Integer.toString(navDeviceID));
+							map.put("dasnLatitude", String.valueOf(navLatitude));
+							map.put("dasnLongitude",
+									String.valueOf(navLongitude));
+							map.put("dasnStatus",
+									Integer.toString(navDeviceStatus));
+							map.put("dasnSatUsed",
+									Integer.toString(navSatellitesCount));
+							map.put("dasnZoneAlarm", null);
+							map.put("dasnMacroId", null);
+							map.put("dasnMacroSrc", null);
+							map.put("dasnSog", String.valueOf(navSpeed));
+							map.put("dasnCource", String.valueOf(navCource));
+							map.put("dasnHdop", String.valueOf(navHdop));
+							map.put("dasnHgeo", String.valueOf(navHeight));
+							map.put("dasnHmet", null);
+							map.put("dasnGpio", null);
+							map.put("dasnAdc", Float.toString(navPower));
+							map.put("dasnTemp", null);
+							map.put("i_spmt_id",
+									Integer.toString(conf.getModType()));
+							map.put("dasnXML", "<xml><acs>" + navAcs
+									+ "</acs><pw>" + navBatt + "</pw></xml>");
+							// запись в БД
+
+							pgcon.setDataSensor(
+									map,
+									sdf.parse(utl.formatDate((int) navDate)
+											+ utl.cTime((int) navTime)));
+							try {
+								pgcon.addDataSensor();
+								logger.debug("Write Database OK");
+							} catch (SQLException e) {
+								logger.warn("Error Writing Database : "
+										+ e.getMessage());
+							}
+							map.clear();
+						}
+						readbytes = 0;
+					} else {
+						packet[readbytes] = cread;
+						if (readbytes == 2) {
+							navPacketSize = 0x000000FF & packet[readbytes];
+							if (navPacketSize == packetDataLength
+									|| navPacketSize == (packetDataLength * 2)) {
+								packetLength = navPacketSize;
+								logger.debug("Packet Length : " + navPacketSize);
+							} else {
+								logger.debug("Incorrect Packet Length : "
+										+ navPacketSize + " : "
+										+ packetDataLength);
+								packetLength = packetDataLength;
+								getAllPacketOK = "***" + packetCount + "*\r\n";
+								logger.debug("Send " + getAllPacketOK);
+								oDs.writeBytes(getAllPacketOK);
+								return;
+							}
+
+						}
+						readbytes = readbytes + 1;
+					}
 				}
 			}
+			logger.debug("Close reader console");
+			logger.debug("Reading packet count : " + packetCount);
+			// ответим солько пакетов прочитали
+			getAllPacketOK = "***" + packetCount + "*\r\n";
+			logger.debug("Send " + getAllPacketOK);
+			oDs.writeBytes(getAllPacketOK);
+			oDs.flush();
+			// обработаем команды из очереди команд для данного блока
+			try {
+				logger.debug("Getting command");
+				pgcon.getCommand(Integer.toString(navDeviceID),
+						conf.getModType());
+				long[] cmdIdTab = pgcon.getCommandId();
+				int commandCount = 0;
+				for (int i = 0; i < cmdIdTab.length; i++) {
+					long cmdId = cmdIdTab[i];
+					String cmdString = pgcon.getCommandString(i);
+					if (cmdString != null) {
+						logger.debug("Send command to device : " + cmdString);
+						// Обработка ответа до 0x0d 0x0a
+						String cmdRes;
+						try {
+							oDs.writeChars(cmdString + "\r\n");
+							logger.debug("Change status CMD in database : CMD_OK");
+							oDs.flush();
+							cmdRes = getCmdResult(iDs, oDs, pgcon);
+							pgcon.setCommandStatus(cmdId, "CMD_OK", cmdRes);
+						} catch (IOException e1) {
+							logger.error("Error Send Command " + cmdString
+									+ " : " + e1.getMessage());
+						}
 
-		} catch (EOFException e1) {
-			logger.error("EOF  : " + e1.getMessage());
-		} catch (SocketTimeoutException e2) {
-			logger.error("Close connection : " + e2.getMessage());
-		} catch (IOException e3) {
-			logger.warn("IO socket error : " + e3.getMessage());
+						commandCount = commandCount + 1;
+					}
+				}
+				if (commandCount > 0) {
+					logger.debug("Sending " + commandCount + " command");
+				}
+			} catch (SQLException m) {
+				logger.warn("Error Get Command : " + m.getMessage());
+			}
+			if (readbytes > 0) {
+				// Некорректно закрыт канал чтения есть непрочитанные байты
+				// Закрываем соединение.
+				logger.error("Buffer length incorrect : " + readbytes);
+				logger.debug("Close connection.");
+				return;
+			}
 		}
 	}
 

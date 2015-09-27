@@ -4,8 +4,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.SocketTimeoutException;
 import java.sql.SQLException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.regex.Matcher;
@@ -594,80 +594,72 @@ public class ModNovacom {
 	private String navXML;
 
 	public ModNovacom(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon) {
-		try {
-			String data = "";
-			int cread;
-			// Получение от устройства CIO;
-			readbytes = 0;
-			data = "";
-			while ((cread = console.read()) != -1) {
-				readbytes = readbytes + 1;
-				logger.debug("Read[" + readbytes + "] " + (char) cread);
-				data = data + (char) cread;
-				if (PatternReports.matcher(data).matches()) {
-					// Разберём пакет
-					packet = data;
-					logger.debug("Парсим : " + packet);
-					parsePacket();
-					/*
-					 * String vehicleId; int dasnUid; String dasnDateTime; float
-					 * dasnLatitude; float dasnLongitude; int dasnStatus; int
-					 * dasnSatUsed; int dasnZoneAlarm; int dasnMacroId; int
-					 * dasnMacroSrc; float dasnSog; float dasnCource; float
-					 * dasnHdop; float dasnHgeo; float dasnHmet; int dasnGpio;
-					 * int dasnAdc; float dasnTemp; int8 i_spmt_id;
-					 */
-					if (isNavigate) {
-						map.put("vehicleId", IMEI);
-						map.put("dasnUid", IMEI);
-						map.put("dasnDateTime", navDateTime);
-						map.put("dasnLatitude", navLatitude);
-						map.put("dasnLongitude", navLongitude);
-						map.put("dasnStatus", String.valueOf(navStatus));
-						map.put("dasnSatUsed", String.valueOf(navSatUsed));
-						map.put("dasnZoneAlarm", null);
-						map.put("dasnMacroId", null);
-						map.put("dasnMacroSrc", null);
-						map.put("dasnSog", String.valueOf(navSog));
-						map.put("dasnCource", String.valueOf(navCource));
-						map.put("dasnHdop", String.valueOf(navHdop));
-						map.put("dasnHgeo", null);
-						map.put("dasnHmet", null);
-						map.put("dasnGpio", null);
-						map.put("dasnAdc", null);
-						map.put("dasnTemp", null);
-						map.put("i_spmt_id",
-								Integer.toString(conf.getModType()));
-						map.put("dasnXML", navXML);
-						// запись в БД
+			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon) throws ParseException, IOException {
 
-						pgcon.setDataSensor(map, sdf.parse(navDateTime));
-						try {
-							pgcon.addDataSensor();
-							logger.debug("Write Database OK");
-						} catch (SQLException e) {
-							logger.warn("Error Writing Database : "
-									+ e.getMessage());
-						}
-						map.clear();
-					} else {
-						logger.debug("Данные не содержат навигационные данные.");
+		String data = "";
+		int cread;
+		// Получение от устройства CIO;
+		readbytes = 0;
+		data = "";
+		while ((cread = console.read()) != -1) {
+			readbytes = readbytes + 1;
+			logger.debug("Read[" + readbytes + "] " + (char) cread);
+			data = data + (char) cread;
+			if (PatternReports.matcher(data).matches()) {
+				// Разберём пакет
+				packet = data;
+				logger.debug("Парсим : " + packet);
+				parsePacket();
+				/*
+				 * String vehicleId; int dasnUid; String dasnDateTime; float
+				 * dasnLatitude; float dasnLongitude; int dasnStatus; int
+				 * dasnSatUsed; int dasnZoneAlarm; int dasnMacroId; int
+				 * dasnMacroSrc; float dasnSog; float dasnCource; float
+				 * dasnHdop; float dasnHgeo; float dasnHmet; int dasnGpio; int
+				 * dasnAdc; float dasnTemp; int8 i_spmt_id;
+				 */
+				if (isNavigate) {
+					map.put("vehicleId", IMEI);
+					map.put("dasnUid", IMEI);
+					map.put("dasnDateTime", navDateTime);
+					map.put("dasnLatitude", navLatitude);
+					map.put("dasnLongitude", navLongitude);
+					map.put("dasnStatus", String.valueOf(navStatus));
+					map.put("dasnSatUsed", String.valueOf(navSatUsed));
+					map.put("dasnZoneAlarm", null);
+					map.put("dasnMacroId", null);
+					map.put("dasnMacroSrc", null);
+					map.put("dasnSog", String.valueOf(navSog));
+					map.put("dasnCource", String.valueOf(navCource));
+					map.put("dasnHdop", String.valueOf(navHdop));
+					map.put("dasnHgeo", null);
+					map.put("dasnHmet", null);
+					map.put("dasnGpio", null);
+					map.put("dasnAdc", null);
+					map.put("dasnTemp", null);
+					map.put("i_spmt_id", Integer.toString(conf.getModType()));
+					map.put("dasnXML", navXML);
+					// запись в БД
+
+					pgcon.setDataSensor(map, sdf.parse(navDateTime));
+					try {
+						pgcon.addDataSensor();
+						logger.debug("Write Database OK");
+					} catch (SQLException e) {
+						logger.warn("Error Writing Database : "
+								+ e.getMessage());
 					}
-					packet = "";
-					data = "";
+					map.clear();
+				} else {
+					logger.debug("Данные не содержат навигационные данные.");
 				}
+				packet = "";
+				data = "";
 			}
-
-			readbytes = 0;
-			logger.debug("Close reader console");
-		} catch (SocketTimeoutException e) {
-			logger.error("Close connection : " + e.getMessage());
-		} catch (IOException e) {
-			logger.warn("IO socket error : " + e.getMessage());
-		} catch (Exception e) {
-			logger.warn("Exception : " + e.getMessage());
 		}
+
+		readbytes = 0;
+		logger.debug("Close reader console");
 
 	}
 

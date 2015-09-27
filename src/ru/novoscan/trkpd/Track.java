@@ -48,18 +48,14 @@ public class Track {
 				sb.setLength(0);
 				sb.append("Подключение к базе данных Postgresql : ")
 						.append(config.getPgUrl());
-				TrackPgUtils pgconn = new TrackPgUtils();
-				pgconn.setConfig(config);
-				pgconn.connect();
+				TrackPgUtils pgconn = new TrackPgUtils(config);
 				sb.append("Подключение выполнено.");
 				TrackServer trackServer;
 				if(config.getServerType().equalsIgnoreCase("UDP")) {
-					trackServer = new TrackServerUdp();
+					trackServer = new TrackServerUdp(config,pgconn);
 				} else {
-					trackServer = new TrackServerTcp();					
+					trackServer = new TrackServerTcp(config,pgconn);					
 				}
-				trackServer.setConfig(config);
-				trackServer.setPgConnect(pgconn);
 				trackServer.run();
 		}
 	}

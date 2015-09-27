@@ -5,7 +5,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
-import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.HashMap;
@@ -109,7 +108,7 @@ public class ModEgts implements ModConstats {
 	}
 
 	public ModEgts(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) {
+			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) throws IOException {
 		this.conf = conf;
 		this.pgcon = pgcon;
 		this.oDs = oDs;
@@ -117,65 +116,56 @@ public class ModEgts implements ModConstats {
 		writebytes = 0;
 		fullreadbytes = 0;
 		// setResponsePacketId(EGTS_TRANSPORT_LAYER_MIN_TP_ADDRESS);
-		try {
-			while (true) {
-				EgtsTransport egtsTransport = new EgtsTransport(iDs);
-				if (!egtsTransport.isValid()) {
-					raiseEgts(egtsTransport.getErrorCode(),
-							egtsTransport.getErrorMessage());
-				}
-				message = egtsTransport.dump();
+		while (true) {
+			EgtsTransport egtsTransport = new EgtsTransport(iDs);
+			if (!egtsTransport.isValid()) {
+				raiseEgts(egtsTransport.getErrorCode(),
+						egtsTransport.getErrorMessage());
+			}
+			message = egtsTransport.dump();
+			debug();
+			ptServices = egtsTransport.getPtServicesFrameData();
+			message = ptServices.dump();
+			debug();
+			if (ptServices.isValid()) {
+				message.append("Count of Service Record Frames : ").append(
+						ptServices.getFdSdrSize());
 				debug();
-				ptServices = egtsTransport.getPtServicesFrameData();
-				message = ptServices.dump();
-				debug();
-				if (ptServices.isValid()) {
-					message.append("Count of Service Record Frames : ").append(
-							ptServices.getFdSdrSize());
+				for (int m = 0; m < ptServices.getFdSdrSize(); m++) {
+					fdSdr = ptServices.getFdSdr(m);
+					message = fdSdr.dump();
 					debug();
-					for (int m = 0; m < ptServices.getFdSdrSize(); m++) {
-						fdSdr = ptServices.getFdSdr(m);
-						message = fdSdr.dump();
+					for (int l = 0; l < fdSdr.size(); l++) {
+						serviceSubRecordData = fdSdr.getServiceSubRecordData(l);
+						serviceSubRecordData.dump();
+						subRecord = serviceSubRecordData.getSubRecord();
+						message = subRecord.dump();
 						debug();
-						for (int l = 0; l < fdSdr.size(); l++) {
-							serviceSubRecordData = fdSdr
-									.getServiceSubRecordData(l);
-							serviceSubRecordData.dump();
-							subRecord = serviceSubRecordData.getSubRecord();
-							message = subRecord.dump();
-							debug();
-							message = subRecord.getSubRecordTermIdentity()
-									.dump();
-							debug();
-							navDeviceID = subRecord.getSubRecordTermIdentity()
-									.getTerminalId();
-							// запись
-							if (subRecordResponse == null) {
-								subRecordResponse = new SubRecord();
-							}
+						message = subRecord.getSubRecordTermIdentity().dump();
+						debug();
+						navDeviceID = subRecord.getSubRecordTermIdentity()
+								.getTerminalId();
+						// запись
+						if (subRecordResponse == null) {
+							subRecordResponse = new SubRecord();
 						}
 					}
-					if (egtsResponse == null) {
-						egtsResponse = new EgtsResponse();
-					}
-					;
-					egtsResponse.setFramedRpid(egtsTransport.getPtPacketId());
-					egtsResponse.setFramedProcResult(EGTS_PC_OK);
-					egtsResponse.setDataRecordSst(fdSdr.getSrRecordSst());
-					egtsResponse.setDataRecordRst(fdSdr.getSrRecordRst());
-					// oDs.write(egtsResponse.getData());
-				} else {
-					raiseEgts(ptServices.getErrorCode(),
-							ptServices.getErrorMessage());
 				}
+				if (egtsResponse == null) {
+					egtsResponse = new EgtsResponse();
+				}
+				;
+				egtsResponse.setFramedRpid(egtsTransport.getPtPacketId());
+				egtsResponse.setFramedProcResult(EGTS_PC_OK);
+				egtsResponse.setDataRecordSst(fdSdr.getSrRecordSst());
+				egtsResponse.setDataRecordRst(fdSdr.getSrRecordRst());
+				// oDs.write(egtsResponse.getData());
+			} else {
+				raiseEgts(ptServices.getErrorCode(),
+						ptServices.getErrorMessage());
 			}
-		} catch (SocketTimeoutException e) {
-			logger.error("Close connection : " + e.getMessage());
-		} catch (IOException e) {
-			logger.warn("IO socket error : " + e.getMessage());
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
+
 	}
 
 	private void debug() {
