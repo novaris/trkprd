@@ -38,8 +38,6 @@ public class TrackServerTcp implements TrackServer {
 
 	private ModConfig config;
 
-	private ServerSocket listenSocket;
-
 	private TrackPgUtils pgConnect;
 
 	public TrackServerTcp(ModConfig config, TrackPgUtils pgConnect) {
@@ -66,63 +64,49 @@ public class TrackServerTcp implements TrackServer {
 	public void run() throws IOException {
 		logger.debug("Запуск TCP сервера : " + config.getHost() + ":"
 				+ config.getPort());
-		listenSocket = new ServerSocket(config.getPort(), config.getMaxConn(),
+		ServerSocket listener = new ServerSocket(config.getPort(), config.getMaxConn(),
 				config.getHost());
+		int clientNumber = 0;
 		logger.debug("Сервер запущен.");
-		new TCPReader();
+        try {
+            while (true) {
+            	new TCPReader(listener.accept(), clientNumber++).start();
+            }
+        } finally {
+            listener.close();
+            logger.debug("Соединение закрыто");
+        }
+		
 	}
 
-	public void close() throws IOException {
-		if (listenSocket.isBound()) {
-			listenSocket.close();
-		}
-	}
 
 	class TCPReader extends Thread implements ModConstats {
-		Connection connection;
 
-		public TCPReader() {
-			connection = new Connection();
+		
+        private Socket clientSocket;
+
+        private int clientNumber;
+
+
+		public TCPReader(Socket clientSocket, int clientNumber) {
+			this.clientSocket = clientSocket;
+			this.clientNumber = clientNumber;
+			logger.info("Подключение клиента " + this.clientNumber + " : "
+					+ clientSocket.getRemoteSocketAddress().toString());
+
 		}
-
-	}
-
-	class Connection extends Thread implements ModConstats {
-
-		private DataInputStream dataInputStream;
-
-		private DataOutputStream dataOutputStream;
-
-		private BufferedReader bufferedReader;
-
-		private InputStreamReader inputStreamReader;
-
-		private Socket clientSocket;
-
-		public Connection() {
-			while (true) {
-				try {
-					clientSocket = listenSocket.accept();
-					clientSocket.setSoTimeout(config.getTimeout());
-					dataInputStream = new DataInputStream(
-							clientSocket.getInputStream());
-					dataOutputStream = new DataOutputStream(
-							clientSocket.getOutputStream());
-					bufferedReader = new BufferedReader(new InputStreamReader(
-							dataInputStream));
-					inputStreamReader = new InputStreamReader(dataInputStream);
-					this.start();
-				} catch (IOException e) {
-					logger.error("Ошибка ввода/вывода : " + e.getMessage());
-				}
-			}
-		}
-
 		public void run() {
 			double readBytes = 0;
 			try {
-				logger.info("Подключение клиента : "
-						+ clientSocket.getRemoteSocketAddress().toString());
+				clientSocket.setSoTimeout(config.getTimeout());
+				DataInputStream dataInputStream = new DataInputStream(
+						clientSocket.getInputStream());
+				DataOutputStream dataOutputStream = new DataOutputStream(
+						clientSocket.getOutputStream());
+				BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(
+						dataInputStream));
+				InputStreamReader inputStreamReader = new InputStreamReader(dataInputStream);
+
 				pgConnect.connect();
 				int modType = config.getModType();
 				logger.debug("Тип модуля : " + config.getModType());
@@ -224,15 +208,10 @@ public class TrackServerTcp implements TrackServer {
 				e.printStackTrace();
 			} finally {
 				try {
-					dataInputStream.close();
-					dataOutputStream.close();
-					bufferedReader.close();
-					inputStreamReader.close();
-					clientSocket.close();
 					pgConnect.close();
-					logger.debug("Соединение закрыто");
-				} catch (IOException | SQLException e) {
-					logger.error("Соединение закрыто : " + e.getMessage());
+					logger.debug("Соединение с базой закрыто");
+				} catch (SQLException e) {
+					
 				}
 			}
 

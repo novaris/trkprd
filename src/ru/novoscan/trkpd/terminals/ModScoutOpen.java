@@ -27,8 +27,9 @@ public class ModScoutOpen implements ModConstats {
 
 	private final static int readOK = 0x55;
 
-	private static final RuntimeException InvalidLength = new RuntimeException("Превышение размера пакета.");
-	
+	private static final RuntimeException InvalidLength = new RuntimeException(
+			"Превышение размера пакета.");
+
 	private int[] packet = new int[SCOUT_MAX_PACKET_LENGTH];
 
 	private DataInputStream iDsLocal;
@@ -70,7 +71,8 @@ public class ModScoutOpen implements ModConstats {
 	private HashMap<Integer, BigInteger> values = new HashMap<>();
 
 	public ModScoutOpen(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) throws IOException, ParseException {
+			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
+			throws IOException, ParseException {
 		this.conf = conf;
 		this.pgcon = pgcon;
 		this.oDs = oDs;
@@ -78,107 +80,106 @@ public class ModScoutOpen implements ModConstats {
 		logger.debug("Read streems..");
 		fullreadbytes = 0;
 		readbytes = 0;
-			while (true) {
-				int packetCount = 0;
+		while (true) {
+			int packetCount = 0;
+			for (int i = 0; i < INT32; i++) {
+				packetCount = (readByte() << (i * 8)) + packetCount;
+			}
+			logger.debug("Количество пакетов : " + packetCount);
+			for (int k = 0; k < packetCount; k++) {
+				map.clear();
+				int lenghtId = readByte();
+				navDeviceID = "";
+				logger.debug("Длина ID терминала : " + lenghtId);
+				for (int i = 0; i < lenghtId; i++) {
+					navDeviceID = navDeviceID + (char) readByte();
+				}
+				logger.debug("ID терминала : " + navDeviceID);
+				int protocolId = 0;
 				for (int i = 0; i < INT32; i++) {
-					packetCount = (readByte() << (i * 8)) + packetCount;
+					protocolId = (readByte() << (i * 8)) + protocolId;
 				}
-				logger.debug("Количество пакетов : " + packetCount);
-				for (int k = 0; k < packetCount; k++) {
-					map.clear();
-					int lenghtId = readByte();
-					navDeviceID = "";
-					logger.debug("Длина ID терминала : " + lenghtId);
-					for (int i = 0; i < lenghtId; i++) {
-						navDeviceID = navDeviceID + (char) readByte();
-					}
-					logger.debug("ID терминала : " + navDeviceID);
-					int protocolId = 0;
-					for (int i = 0; i < INT32; i++) {
-						protocolId = (readByte() << (i * 8)) + protocolId;
-					}
-					logger.debug("Тип оборудования : " + protocolId);
-					/*
-					 * ScoutMT500 = 1, ScoutMT501 = 2, Voyager = 3, Unknown = 4,
-					 * TeltonikaFM4XXX = 5, Omega = 6, Autograph = 7, ScoutRx =
-					 * 8, Voyager2 = 9, Tr102 = 10, LineGuard = 11, Gelix = 12,
-					 * IgevskTM4 = 13, ScoutMT600 = 14, TeltonikaGH1201 = 15,
-					 * NaviTechUTP4 = 16, ScoutMT510 = 17, Portman = 18, Fort300
-					 * = 200, FalcomStepp2 = 201, TitanT10 = 202, AutographWiFi
-					 * = 203, Autograph2 = 204, ScoutMt600Test = 205, Galileo =
-					 * 206, Hiton = 207, SkyWave = 208, SkyWaveFtpAndConecte =
-					 * 209, TeltonikaGh3000 = 210, Azimut = 211, Aplicom = 212,
-					 * Granit7 = 213, ArkanMt5 = 214, Tr203 = 215, Granit4 =
-					 * 217, NovacomGns = 218,
-					 */
-					long timestamp = 0;
-					for (int i = 0; i < INT64; i++) {
-						timestamp = (((long) readByte()) << (i * 8))
-								+ timestamp;
-					}
-					timestamp = (timestamp - TICKS_AT_EPOCH)
-							/ TICKS_PER_MILLISECOND;
-					navDateTime.setTime(timestamp - TZ_OFFSET);
-					logger.debug("Дата : " + navDateTime);
-
-					int longitude = 0;
-					for (int i = 0; i < INT32; i++) {
-						longitude = (readByte() << (i * 8)) + longitude;
-					}
-					navLongitude = Float.intBitsToFloat(longitude);
-					logger.debug("Широта : " + navLongitude);
-
-					int latitude = 0;
-					for (int i = 0; i < INT32; i++) {
-						latitude = (readByte() << (i * 8)) + latitude;
-					}
-					navLatitude = Float.intBitsToFloat(latitude);
-					logger.debug("Долгота : " + navLatitude);
-
-					int speed = 0;
-					for (int i = 0; i < INT32; i++) {
-						speed = (readByte() << (i * 8)) + speed;
-					}
-					navSpeed = Float.intBitsToFloat(speed);
-					logger.debug("Скорость : " + navSpeed);
-					navCource = readByte() + (readByte() << 8);
-					logger.debug("Курс : " + navCource);
-					navGPIO = (readByte() << 8) + (readByte());
-					logger.debug("IO : " + navGPIO);
-					navAdc0 = readByte() + (readByte() << 8);
-					logger.debug("ADC0 значение : " + navAdc0);
-					navAdc1 = readByte() + (readByte() << 8);
-					logger.debug("ADC1 значение : " + navAdc1);
-					navStat0 = readByte() + (readByte() << 8);
-					logger.debug("Stat0 значение : " + navStat0);
-					navStat1 = readByte() + (readByte() >> 8);
-					navSatellitesCount = navStat1 & 0x1f;
-					logger.debug("Спутники : " + navSatellitesCount);
-					if (((navStat1 & 0xff) >> 5) > 0) {
-						navDeviceStatus = 1;
-					} else {
-						navDeviceStatus = 0;
-					}
-					logger.debug("Статус GPS : " + navDeviceStatus);
-					int dataLen = readByte();
-					int dataSize = 0;
-					if ((dataLen >> 7) == 0) {
-						dataSize = dataLen;
-					} else {
-						dataSize = (dataLen & 0x7F) + (readByte() << 7);
-					}
-					logger.debug("Длина данных : " + dataSize);
-					int stringLen = Integer.parseInt(readChar(), 16);
-					logger.debug("Строка длиной : " + stringLen);
-					String data = "";
-					for (int n = 0; n < stringLen; n++) {
-						data = data + readChar();
-					}
-					logger.debug("Датчики : " + data);
-					values.clear();
-					parseData(data);
-					writeData();
+				logger.debug("Тип оборудования : " + protocolId);
+				/*
+				 * ScoutMT500 = 1, ScoutMT501 = 2, Voyager = 3, Unknown = 4,
+				 * TeltonikaFM4XXX = 5, Omega = 6, Autograph = 7, ScoutRx = 8,
+				 * Voyager2 = 9, Tr102 = 10, LineGuard = 11, Gelix = 12,
+				 * IgevskTM4 = 13, ScoutMT600 = 14, TeltonikaGH1201 = 15,
+				 * NaviTechUTP4 = 16, ScoutMT510 = 17, Portman = 18, Fort300 =
+				 * 200, FalcomStepp2 = 201, TitanT10 = 202, AutographWiFi = 203,
+				 * Autograph2 = 204, ScoutMt600Test = 205, Galileo = 206, Hiton
+				 * = 207, SkyWave = 208, SkyWaveFtpAndConecte = 209,
+				 * TeltonikaGh3000 = 210, Azimut = 211, Aplicom = 212, Granit7 =
+				 * 213, ArkanMt5 = 214, Tr203 = 215, Granit4 = 217, NovacomGns =
+				 * 218,
+				 */
+				long timestamp = 0;
+				for (int i = 0; i < INT64; i++) {
+					timestamp = (((long) readByte()) << (i * 8)) + timestamp;
 				}
+				timestamp = (timestamp - TICKS_AT_EPOCH)
+						/ TICKS_PER_MILLISECOND;
+				navDateTime.setTime(timestamp - TZ_OFFSET);
+				logger.debug("Дата : " + navDateTime);
+
+				int longitude = 0;
+				for (int i = 0; i < INT32; i++) {
+					longitude = (readByte() << (i * 8)) + longitude;
+				}
+				navLongitude = Float.intBitsToFloat(longitude);
+				logger.debug("Широта : " + navLongitude);
+
+				int latitude = 0;
+				for (int i = 0; i < INT32; i++) {
+					latitude = (readByte() << (i * 8)) + latitude;
+				}
+				navLatitude = Float.intBitsToFloat(latitude);
+				logger.debug("Долгота : " + navLatitude);
+
+				int speed = 0;
+				for (int i = 0; i < INT32; i++) {
+					speed = (readByte() << (i * 8)) + speed;
+				}
+				navSpeed = Float.intBitsToFloat(speed);
+				logger.debug("Скорость : " + navSpeed);
+				navCource = readByte() + (readByte() << 8);
+				logger.debug("Курс : " + navCource);
+				navGPIO = (readByte() << 8) + (readByte());
+				logger.debug("IO : " + navGPIO);
+				navAdc0 = readByte() + (readByte() << 8);
+				logger.debug("ADC0 значение : " + navAdc0);
+				navAdc1 = readByte() + (readByte() << 8);
+				logger.debug("ADC1 значение : " + navAdc1);
+				navStat0 = readByte() + (readByte() << 8);
+				logger.debug("Stat0 значение : " + navStat0);
+				navStat1 = readByte() + (readByte() >> 8);
+				navSatellitesCount = navStat1 & 0x1f;
+				logger.debug("Спутники : " + navSatellitesCount);
+				if (((navStat1 & 0xff) >> 5) > 0) {
+					navDeviceStatus = 1;
+				} else {
+					navDeviceStatus = 0;
+				}
+				logger.debug("Статус GPS : " + navDeviceStatus);
+				int dataLen = readByte();
+				int dataSize = 0;
+				if ((dataLen >> 7) == 0) {
+					dataSize = dataLen;
+				} else {
+					dataSize = (dataLen & 0x7F) + (readByte() << 7);
+				}
+				logger.debug("Длина данных : " + dataSize);
+				int stringLen = Integer.parseInt(readChar(), 16);
+				logger.debug("Строка длиной : " + stringLen);
+				String data = "";
+				for (int n = 0; n < stringLen; n++) {
+					data = data + readChar();
+				}
+				logger.debug("Датчики : " + data);
+				values.clear();
+				parseData(data);
+				writeData();
+			}
 
 		}
 	}
@@ -190,8 +191,8 @@ public class ModScoutOpen implements ModConstats {
 		int value = 0;
 
 		values.clear();
-		while (seek < data.length()) {
-			try {
+		try {
+			while (seek < data.length()) {
 				int endIndex = seek + 2;
 				typeCode = Integer.valueOf(data.substring(seek, endIndex));
 				seek = endIndex;
@@ -205,10 +206,11 @@ public class ModScoutOpen implements ModConstats {
 				values.put(id, BigInteger.valueOf(value));
 				seek = endIndex;
 				id++;
-			} catch (NumberFormatException nfe) {
-				logger.error("Неверное значение : " + value);
-				seek = seek + 2;
 			}
+		} catch (NumberFormatException nfe) {
+			logger.error("Неверное значение : " + value);
+			seek = data.length();
+
 		}
 
 	}
@@ -217,7 +219,8 @@ public class ModScoutOpen implements ModConstats {
 		return fullreadbytes;
 	}
 
-	private int readByte() throws IOException, ArrayIndexOutOfBoundsException, RuntimeException {
+	private int readByte() throws IOException, ArrayIndexOutOfBoundsException,
+			RuntimeException {
 		int bread = iDsLocal.readByte() & 0xff;
 		packet[readbytes] = bread;
 		logger.debug("packet[" + readbytes + "] : "
