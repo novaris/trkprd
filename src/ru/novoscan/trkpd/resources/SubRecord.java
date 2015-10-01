@@ -27,9 +27,9 @@ public class SubRecord implements ModConstats {
 		this.subRecordInfo.clear();
 		int i = 0;
 		while (i < subRecordsData.size()) {
-			this.setType(subRecordsData.get(i++));
-			this.setLength(subRecordsData.get(i++)
-					+ ((subRecordsData.get(i++) << 8) & 0xff00));
+			this.setType(subRecordsData.get(i++) & 0xff);
+			this.setLength((subRecordsData.get(i++) & 0xff)
+					+ ((subRecordsData.get(i++) & 0xff) << 8));
 			for (int k = 0; k < this.getLength(); k++) {
 				subRecordInfo.add(subRecordsData.get(i++));
 			}

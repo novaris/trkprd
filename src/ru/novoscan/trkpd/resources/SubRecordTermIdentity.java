@@ -279,7 +279,7 @@ public class SubRecordTermIdentity implements ModConstats {
 				+ ((data.get(1) & 0xff) << 8) + ((data.get(2) & 0xff) << 16)
 				+ ((data.get(3) & 0xff) << 24)));
 		if (isPreHomeDispatcherIdentifier()) {
-			setHomeDispatcherId(data.get(5) + (data.get(6) << 8));
+			setHomeDispatcherId((data.get(5) & 0xff) + ((data.get(6) & 0xff) << 8));
 		}
 		if (isPreImei()) {
 			for (int k = 7; k < 22; k++) {
@@ -297,11 +297,11 @@ public class SubRecordTermIdentity implements ModConstats {
 			}
 		}
 		if (isPreNetworkId()) {
-			setNetworkId(data.get(41) + (data.get(42) << 8)
-					+ (data.get(43) << 16));
+			setNetworkId((data.get(41) & 0xff) + ((data.get(42) & 0xff) << 8)
+					+ ((data.get(43) & 0xff) << 16));
 		}
 		if (isPreBufferSize()) {
-			setBufferSize(data.get(44) + (data.get(45) << 8));
+			setBufferSize((data.get(44) & 0xff) + ((data.get(45)  & 0xff) << 8));
 		}
 		if (isPreMsisdn()) {
 			for (int k = 46; k < 61; k++) {

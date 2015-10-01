@@ -54,26 +54,23 @@ public class ServiceDataRecord {
 		int k = fdHeadLength;
 		serviceSubRecordData.clear();
 		while (k < fdDataLength) {
-
-			this.setSrRecordLength(ptFrameData[k++]
-					+ ((ptFrameData[k++] << 8) & 0xff00));
-			this.setSrRecordNumber(ptFrameData[k++]
-					+ ((ptFrameData[k++] << 8) & 0xff00));
+			this.setSrRecordLength((ptFrameData[k++] & 0xff) + ((ptFrameData[k++] & 0xff) << 8));
+			this.setSrRecordNumber((ptFrameData[k++] & 0xff) + ((ptFrameData[k++] & 0xff) << 8));
 			this.setSrRecordFlags(ptFrameData[k++]);
 			if (this.isPreRecordOid()) {
-				this.setSrRecordOid(ptFrameData[k++] + (ptFrameData[k++] << 8)
-						+ (ptFrameData[k++] << 16) + (ptFrameData[k++] << 24));
+				this.setSrRecordOid((ptFrameData[k++] & 0xff) + ((ptFrameData[k++] & 0xff) << 8)
+						+ ((ptFrameData[k++] & 0xff) << 16) + ((ptFrameData[k++] & 0xff) << 24));
 			}
 			if (this.isPreRecordEvid()) {
-				this.setSrRecordEvid(ptFrameData[k++] + (ptFrameData[k++] << 8)
-						+ (ptFrameData[k++] << 16) + (ptFrameData[k++] << 24));
+				this.setSrRecordEvid( (ptFrameData[k++] & 0xff) + ((ptFrameData[k++] & 0xff) << 8)
+						+ ((ptFrameData[k++] & 0xff) << 16)  + ((ptFrameData[k++] & 0xff) << 24) );
 			}
 			if (this.isPreRecordTm()) {
-				this.setSrRecordTm(ptFrameData[k++] + (ptFrameData[k++] << 8)
-						+ (ptFrameData[k++] << 16) + (ptFrameData[k++] << 24));
+				this.setSrRecordTm((ptFrameData[k++] & 0xff) + ((ptFrameData[k++] & 0xff) << 8)
+						+ ((ptFrameData[k++] & 0xff) << 16)  + ((ptFrameData[k++] & 0xff) << 24));
 			}
-			this.setSrRecordSst(ptFrameData[k++]);
-			this.setSrRecordRst(ptFrameData[k++]);
+			this.setSrRecordSst(ptFrameData[k++] & 0xff);
+			this.setSrRecordRst(ptFrameData[k++] & 0xff);
 			ServiceSubRecordData subRecord = new ServiceSubRecordData(
 					ptFrameData, k, this.getSrRecordLength(),
 					this.getSrRecordRst());

@@ -42,7 +42,10 @@ public class EgtsFrameData implements ModConstats {
 		int k = 0;
 		setValid(false);
 		if (ptPacketType == EGTS_PT_RESPONSE) {
-			setFdRpid(ptFrameData[k++] + ((ptFrameData[k++] << 8) & 0xff00));
+			int rpid = 0;
+			rpid = rpid + ptFrameData[k++];
+			rpid = rpid + ((ptFrameData[k++]& 0xff) << 8);
+			setFdRpid(rpid);
 			setFdProcResult(ptFrameData[k++]);
 			setValid(true);
 		} else if (ptPacketType == EGTS_PT_APPDATA) {

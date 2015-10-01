@@ -66,7 +66,7 @@ public class TrackServerUdp implements TrackServer {
 
 		public void run() {
 			try {
-				logger.debug("Подключение клиента : "
+				logger.info("Подключение клиента : "
 						+ dataPacket.getSocketAddress().toString());
 				pgConnect.connect();
 				int modType = config.getModType();
