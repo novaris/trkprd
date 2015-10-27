@@ -10,17 +10,16 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.TimeZone;
 
 import org.apache.log4j.Logger;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModNavis implements ModConstats {
+public class ModNavis extends Terminal {
 
 	private static final Logger logger = Logger.getLogger(ModNavis.class);
 
@@ -40,12 +39,6 @@ public class ModNavis implements ModConstats {
 
 	private final DateFormat df = new SimpleDateFormat(DATE_FORMAT);
 
-	private ModConfig conf;
-
-	private TrackPgUtils pgcon;
-
-	private String navIMEI;
-
 	private int[] packetHadnshake;
 
 	private int[] packetHeader;
@@ -54,7 +47,7 @@ public class ModNavis implements ModConstats {
 
 	private int[] crcData;
 
-	private DataInputStream iDsLocal;
+	private DataInputStream iDs;
 
 	private int fullreadbytes;
 
@@ -66,35 +59,11 @@ public class ModNavis implements ModConstats {
 
 	private int k;
 
-	private DecimalFormat dfIMEI = new DecimalFormat();
+	private DecimalFormat dfImei = new DecimalFormat();
 
 	private int navReason;
 
-	private float navLongitude;
-
-	private float navLatitude;
-
-	private int navCource;
-
-	private int navSatellitesCount;
-
-	private int navSpeed;
-
-	private int navDeviceStatus;
-
-	private int navHgeo;
-
-	private int navSNS;
-
-	private HashMap<String, String> map = new HashMap<String, String>();
-
-	private int navAdc;
-
-	private int navGpio;
-
-	private String navData;
-
-	private int navTemp;
+	private int navSns;
 
 	public String getCmd() {
 		return cmd;
@@ -107,12 +76,10 @@ public class ModNavis implements ModConstats {
 	public ModNavis(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
-		dfIMEI.setMaximumIntegerDigits(15);
-		dfIMEI.setMinimumIntegerDigits(15);
-		dfIMEI.setGroupingSize(15);
-		setConf(conf);
-		setPgcon(pgcon);
-		setiDsLocal(iDs);
+		dfImei.setMaximumIntegerDigits(15);
+		dfImei.setMinimumIntegerDigits(15);
+		dfImei.setGroupingSize(15);
+		this.iDs = iDs;
 		logger.debug("Чтение потока..");
 		setPacketHandshake(new int[PACKET_HANDSHAKE_LENGTH]); // пакет с
 																// нулевого
@@ -160,46 +127,31 @@ public class ModNavis implements ModConstats {
 						logger.debug("Дата : " + navDateTime);
 						navReason = getReason();
 						logger.debug("Причина : " + navReason);
-						navData = "";
 						getGnss();
 						getIO();
-						if (navDeviceStatus == 1) {
-							map.clear();
-							map.put("vehicleId", navIMEI);
-							map.put("dasnUid", navIMEI);
-							map.put("dasnLatitude", String.valueOf(navLatitude));
-							map.put("dasnLongitude",
-									String.valueOf(navLongitude));
-							map.put("dasnStatus",
-									String.valueOf(navDeviceStatus));
-							map.put("dasnSatUsed",
-									String.valueOf(navSatellitesCount));
-							map.put("dasnZoneAlarm", null);
-							map.put("dasnMacroId", null);
-							map.put("dasnMacroSrc", null);
-							map.put("dasnSog", String.valueOf(navSpeed));
-							map.put("dasnCource", String.valueOf(navCource));
-							map.put("dasnHdop", null);
-							map.put("dasnHgeo", String.valueOf(navHgeo));// Высота
-							map.put("dasnHmet", null);
-							map.put("dasnGpio", String.valueOf(navGpio));
-							map.put("dasnAdc", String.valueOf(navAdc));
-							map.put("dasnTemp", String.valueOf(navTemp));
-							map.put("i_spmt_id",
-									Integer.toString(conf.getModType()));
-							map.put("dasnXML", "<xml><i>" + navData
-									+ "</i></xml>");
+						if (dasnStatus == DATA_STATUS.OK) {							
+							dataSensor.setDasnUid(dasnUid);
+							dataSensor.setDasnLatitude(dasnLatitude);
+							dataSensor.setDasnLongitude(dasnLongitude);
+							dataSensor.setDasnSatUsed(dasnSatUsed);
+							dataSensor.setDasnSog(dasnSog);
+							dataSensor.setDasnCourse(dasnCourse);
+							dataSensor.setDasnHgeo(dasnHgeo);
+							dataSensor.setDasnGpio(dasnGpio);
+							dataSensor.setDasnAdc(dasnAdc);
+							dataSensor.setDasnTemp(dasnTemp);
+							dataSensor.setDasnValues(dasnValues);
 							// запись в БД
-							pgcon.setDataSensor(map, df.parse(navDateTime));
+							pgcon.setDataSensorValues(dataSensor);
 							// Ответ блоку
 							try {
 								pgcon.addDataSensor();
-								logger.debug("Writing Database : " + navIMEI);
+								logger.debug("Writing Database : " + dasnUid);
 							} catch (SQLException e) {
 								logger.warn("Error Writing Database : "
 										+ e.getMessage());
 							}
-							map.clear();
+							this.clear();							
 						}
 					}
 				}
@@ -218,15 +170,15 @@ public class ModNavis implements ModConstats {
 				int id = readId();
 				int value = readValue(byteLength);
 				if (id == 66) {
-					navAdc = value;
+					dasnAdc = (long) value;
 				} else if (id == 65) {
-					navGpio = value;
+					dasnGpio = (long) value;
 				} else if (id == 70) {
-					navTemp = value;
+					dasnTemp = (double) value;
 				} else if (id == 105 || id == 106) {
 					// Уже порядковый номер и дата
 				} else {
-					navData = navData + id + "=" + value + ";";
+					dasnValues.put(String.valueOf(id), String.valueOf(value));
 				}
 			}
 			byteLength = 2 * byteLength;
@@ -249,29 +201,34 @@ public class ModNavis implements ModConstats {
 	}
 
 	private void getGnss() {
-		navLongitude = ModUtils.getDegreeFromInt(ModUtils.getIntU32L(
-				packetData, k));
+		dasnLongitude = Double.valueOf(ModUtils.getDegreeFromInt(ModUtils.getIntU32L(
+				packetData, k)));
 		k = k + 4;
-		logger.debug("Долгота : " + navLongitude);
-		navLatitude = ModUtils.getDegreeFromInt(ModUtils.getIntU32L(packetData,
-				k));
+		logger.debug("Долгота : " + dasnLongitude);
+		dasnLatitude = Double.valueOf(ModUtils.getDegreeFromInt(ModUtils.getIntU32L(packetData,
+				k)));
 		k = k + 4;
-		logger.debug("Широта : " + navLatitude);
-		navHgeo = ModUtils.getIntU16L(packetData, k);
+		logger.debug("Широта : " + dasnLatitude);
+		dasnHgeo = Double.valueOf(ModUtils.getIntU16L(packetData, k));
 		k = k + 2;
-		logger.debug("Высота : " + navHgeo);
-		navCource = ModUtils.getIntU16L(packetData, k);
+		logger.debug("Высота : " + dasnHgeo);
+		dasnCourse = Double.valueOf(ModUtils.getIntU16L(packetData, k));
 		k = k + 2;
-		logger.debug("Курс : " + navCource);
-		navSatellitesCount = packetData[k++];
-		logger.debug("Спутники : " + navSatellitesCount);
-		navSpeed = ModUtils.getIntU16L(packetData, k);
+		logger.debug("Курс : " + dasnCourse);
+		dasnSatUsed = Long.valueOf(packetData[k++]);
+		logger.debug("Спутники : " + dasnSatUsed);
+		dasnSog = Double.valueOf(ModUtils.getIntU16L(packetData, k));
 		k = k + 2;
-		logger.debug("Скорость : " + navSpeed);
-		navDeviceStatus = packetData[k++];
-		logger.debug("Достоверность : " + navDeviceStatus);
-		navSNS = packetData[k++];
-		logger.debug("СНС : " + navSNS);
+		logger.debug("Скорость : " + dasnSog);
+		if  (packetData[k++] == 1) {
+			dasnStatus = DATA_STATUS.OK;
+		} else {
+			dasnStatus = DATA_STATUS.ERR;
+			
+		}
+		logger.debug("Достоверность : " + dasnStatus);
+		navSns = packetData[k++];
+		logger.debug("СНС : " + navSns);
 	}
 
 	private int getReason() {
@@ -313,7 +270,7 @@ public class ModNavis implements ModConstats {
 			imei = imei + (packetData[i] * Math.pow(2, offset));
 			k++;
 		}
-		imeiString = dfIMEI.format(imei);
+		imeiString = dfImei.format(imei);
 		logger.debug("IMEI пакета : " + imeiString);
 		return imeiString;
 	}
@@ -352,9 +309,9 @@ public class ModNavis implements ModConstats {
 					"Неверные данные пакета HANDSHAKE : размер " + headeSize);
 		}
 		//
-		navIMEI = "";
+		dasnUid = "";
 		for (int i = 0; i < 15; i++) {
-			navIMEI = navIMEI + (char) packetHadnshake[k];
+			dasnUid = dasnUid + (char) packetHadnshake[k];
 			k++;
 		}
 		navSoftVersion = "";
@@ -363,7 +320,7 @@ public class ModNavis implements ModConstats {
 			k++;
 		}
 
-		logger.debug("IMEI терминала : " + navIMEI);
+		logger.debug("IMEI терминала : " + dasnUid);
 		logger.debug("Версия ПО терминала : " + navSoftVersion);
 		if (!checkIMEI()) {
 			setCmd("NO01");
@@ -399,35 +356,6 @@ public class ModNavis implements ModConstats {
 		this.packetHadnshake = packetHeader;
 	}
 
-	/**
-	 * @return the conf
-	 */
-	public ModConfig getConf() {
-		return conf;
-	}
-
-	/**
-	 * @param conf
-	 *            the conf to set
-	 */
-	public void setConf(ModConfig conf) {
-		this.conf = conf;
-	}
-
-	/**
-	 * @return the pgcon
-	 */
-	public TrackPgUtils getPgcon() {
-		return pgcon;
-	}
-
-	/**
-	 * @param pgcon
-	 *            the pgcon to set
-	 */
-	public void setPgcon(TrackPgUtils pgcon) {
-		this.pgcon = pgcon;
-	}
 
 	/**
 	 * @return the maxPacketSize
@@ -440,7 +368,7 @@ public class ModNavis implements ModConstats {
 	 * @return the iDsLocal
 	 */
 	public DataInputStream getiDsLocal() {
-		return iDsLocal;
+		return iDs;
 	}
 
 	/**
@@ -448,11 +376,11 @@ public class ModNavis implements ModConstats {
 	 *            the iDsLocal to set
 	 */
 	public void setiDsLocal(DataInputStream iDsLocal) {
-		this.iDsLocal = iDsLocal;
+		this.iDs = iDsLocal;
 	}
 
 	private int readByte() throws IOException {
-		byte bread = iDsLocal.readByte();
+		byte bread = iDs.readByte();
 		int packet = bread & 0xff;
 		logger.debug("packet[" + readbytes + "] : "
 				+ Integer.toHexString(packet));

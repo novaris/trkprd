@@ -5,14 +5,15 @@ import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+
 import org.apache.log4j.Logger;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModAzimut implements ModConstats {
+public class ModAzimut extends Terminal {
 	private static final Logger logger = Logger.getLogger(ModAzimut.class);
 
 	private int fullreadbytes = 0;
@@ -22,8 +23,6 @@ public class ModAzimut implements ModConstats {
 	private byte[] packetData;
 
 	private String navPacketType;
-
-	private int navDevId;
 
 	private int navMsgLen;
 
@@ -73,11 +72,11 @@ public class ModAzimut implements ModConstats {
 			navPacketType = navPacketType + (char) readByte();
 		}
 		if (navPacketType.equalsIgnoreCase("AZ5")) {
-			navDevId = 0;
+			dasnUid = "";
 			for (int i = 0; i < 2; i++) {
-				navDevId = readValue(3);
+				dasnUid = dasnUid + readValue(3);
 			}
-			logger.debug("DEV_ID : " + navDevId);
+			logger.debug("DEV_ID : " + dasnUid);
 			navMsgLen = readByte() & 0x09;
 			logger.debug("MSG_LEN : " + navMsgLen);
 			navBalance = readValue(3);

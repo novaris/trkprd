@@ -7,26 +7,27 @@ import java.io.InputStreamReader;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModNovacom {
+public class ModNovacom extends Terminal {
 
 	static Logger logger = Logger.getLogger(ModNovacom.class);
 
 	private int readbytes = 0;
 
-	private final SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
+	private final SimpleDateFormat DSF = new SimpleDateFormat("yyyyMMddHHmmss");
+
+	private Matcher m;
 
 	// private static String tailSymbol = "$";
 
-	private HashMap<String, String> map = new HashMap<String, String>();
 
 	// private static final Pattern Pattern_ACK_GTHBD =
 	// Pattern.compile("\\+ACK:GTHBD,([0-9A-Z]{6}),(\\d{0,15}),[\\w]{0,10},(\\d{14}),([0-9A-Fa-f]{4})\\$");
@@ -571,30 +572,11 @@ public class ModNovacom {
 	 */
 	private String packet;
 
-	private int navStatus;
-
-	private float navSog;
-
-	private String navLatitude;
-
-	private String navLongitude;
-
-	private int navCource;
-
-	private String IMEI;
-
 	private boolean isNavigate;
 
-	private String navDateTime;
-
-	private int navSatUsed;
-
-	private int navHdop;
-
-	private String navXML;
-
 	public ModNovacom(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon) throws ParseException, IOException {
+			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException, IOException {
 
 		String data = "";
 		int cread;
@@ -619,29 +601,18 @@ public class ModNovacom {
 				 * dasnAdc; float dasnTemp; int8 i_spmt_id;
 				 */
 				if (isNavigate) {
-					map.put("vehicleId", IMEI);
-					map.put("dasnUid", IMEI);
-					map.put("dasnDateTime", navDateTime);
-					map.put("dasnLatitude", navLatitude);
-					map.put("dasnLongitude", navLongitude);
-					map.put("dasnStatus", String.valueOf(navStatus));
-					map.put("dasnSatUsed", String.valueOf(navSatUsed));
-					map.put("dasnZoneAlarm", null);
-					map.put("dasnMacroId", null);
-					map.put("dasnMacroSrc", null);
-					map.put("dasnSog", String.valueOf(navSog));
-					map.put("dasnCource", String.valueOf(navCource));
-					map.put("dasnHdop", String.valueOf(navHdop));
-					map.put("dasnHgeo", null);
-					map.put("dasnHmet", null);
-					map.put("dasnGpio", null);
-					map.put("dasnAdc", null);
-					map.put("dasnTemp", null);
-					map.put("i_spmt_id", Integer.toString(conf.getModType()));
-					map.put("dasnXML", navXML);
+					dataSensor.setDasnUid(dasnUid);
+					dataSensor.setDasnDatetime(dasnDatetime);
+					dataSensor.setDasnLatitude(dasnLatitude);
+					dataSensor.setDasnLongitude(dasnLongitude);
+					dataSensor.setDasnHdop(dasnHdop);
+					dataSensor.setDasnSog(dasnSog);
+					dataSensor.setDasnSatUsed(dasnSatUsed);
+					dataSensor.setDasnCourse(dasnCourse);
+
 					// запись в БД
 
-					pgcon.setDataSensor(map, sdf.parse(navDateTime));
+					pgcon.setDataSensorValues(dataSensor);;
 					try {
 						pgcon.addDataSensor();
 						logger.debug("Write Database OK");
@@ -649,7 +620,7 @@ public class ModNovacom {
 						logger.warn("Error Writing Database : "
 								+ e.getMessage());
 					}
-					map.clear();
+					this.clear();
 				} else {
 					logger.debug("Данные не содержат навигационные данные.");
 				}
@@ -663,18 +634,9 @@ public class ModNovacom {
 
 	}
 
-	private void parsePacket() {
+	private void parsePacket() throws ParseException {
 
 		logger.debug("Обработка данных : " + packet);
-		Matcher m;
-		IMEI = null;
-		navHdop = -1;
-		navLongitude = null;
-		navLatitude = null;
-		navDateTime = null;
-		navSatUsed = -1;
-		navSog = -1;
-		navXML = null;
 		isNavigate = false;
 		if (Pattern_ACK.matcher(packet).matches()) {
 			m = Pattern_ACK.matcher(packet);
@@ -685,86 +647,92 @@ public class ModNovacom {
 			m = Pattern_RESP_GTDOG.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTDOG UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = Integer.valueOf(m.group(5));
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = getSatUsed(navHdop);
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml>" + "<pw>" + m.group(17) + "%</pw>" + "<mcc>"
-					+ m.group(12) + "</mcc>" + "<mnc>" + m.group(13) + "</mnc>"
-					+ "<lac>" + m.group(14) + "</lac>" + "<cell>" + m.group(15)
-					+ "</cell>" + "<odo>" + m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = Double.valueOf(m.group(5));
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = getSatUsed(dasnHdop);
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("PW", m.group(17));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTFRI.matcher(packet).matches()) {
 			m = Pattern_RESP_GTFRI.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTFRI UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = Integer.valueOf(m.group(5));
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = getSatUsed(navHdop);
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml><mcc>" + m.group(12) + "</mcc>" + "<mnc>"
-					+ m.group(13) + "</mnc>" + "<lac>" + m.group(14) + "</lac>"
-					+ "<cell>" + m.group(15) + "</cell>" + "<odo>"
-					+ m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = Double.valueOf(m.group(5));
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = getSatUsed(dasnHdop);
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTNMR.matcher(packet).matches()) {
 			m = Pattern_RESP_GTNMR.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTNMR UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = Integer.valueOf(m.group(5));
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = getSatUsed(navHdop);
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml><mcc>" + m.group(12) + "</mcc>" + "<mnc>"
-					+ m.group(13) + "</mnc>" + "<lac>" + m.group(14) + "</lac>"
-					+ "<cell>" + m.group(15) + "</cell>" + "<odo>"
-					+ m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = Double.valueOf(m.group(5));
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = getSatUsed(dasnHdop);
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTLBC.matcher(packet).matches()) {
 			m = Pattern_RESP_GTLBC.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTLBC UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = Integer.valueOf(m.group(5));
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = getSatUsed(navHdop);
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml><mcc>" + m.group(12) + "</mcc>" + "<mnc>"
-					+ m.group(13) + "</mnc>" + "<lac>" + m.group(14) + "</lac>"
-					+ "<cell>" + m.group(15) + "</cell>" + "<odo>"
-					+ m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = Double.valueOf(m.group(5));
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = getSatUsed(dasnHdop);
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTGCR.matcher(packet).matches()) {
 			m = Pattern_RESP_GTGCR.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTGCR UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = 1;
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = Integer.valueOf(m.group(5));
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml><mcc>" + m.group(12) + "</mcc>" + "<mnc>"
-					+ m.group(13) + "</mnc>" + "<lac>" + m.group(14) + "</lac>"
-					+ "<cell>" + m.group(15) + "</cell>" + "<odo>"
-					+ m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = 1D;
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = Long.valueOf(m.group(5));
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTINF.matcher(packet).matches()) {
 			m = Pattern_RESP_GTINF.matcher(packet);
@@ -820,103 +788,109 @@ public class ModNovacom {
 			m = Pattern_RESP_GTEPN.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTEPN UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = Integer.valueOf(m.group(5));
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = getSatUsed(navHdop);
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml><mcc>" + m.group(12) + "</mcc>" + "<mnc>"
-					+ m.group(13) + "</mnc>" + "<lac>" + m.group(14) + "</lac>"
-					+ "<cell>" + m.group(15) + "</cell>" + "<odo>"
-					+ m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = Double.valueOf(m.group(5));
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = getSatUsed(dasnHdop);
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTBPL.matcher(packet).matches()) {
 			m = Pattern_RESP_GTBPL.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTBPL UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = Integer.valueOf(m.group(5));
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = getSatUsed(navHdop);
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml><mcc>" + m.group(12) + "</mcc>" + "<mnc>"
-					+ m.group(13) + "</mnc>" + "<lac>" + m.group(14) + "</lac>"
-					+ "<cell>" + m.group(15) + "</cell>" + "<odo>"
-					+ m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = Double.valueOf(m.group(5));
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = getSatUsed(dasnHdop);
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTEPF.matcher(packet).matches()) {
 			m = Pattern_RESP_GTEPF.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTEPF UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = Integer.valueOf(m.group(5));
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = getSatUsed(navHdop);
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml><mcc>" + m.group(12) + "</mcc>" + "<mnc>"
-					+ m.group(13) + "</mnc>" + "<lac>" + m.group(14) + "</lac>"
-					+ "<cell>" + m.group(15) + "</cell>" + "<odo>"
-					+ m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = Double.valueOf(m.group(5));
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = getSatUsed(dasnHdop);
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTBTC.matcher(packet).matches()) {
 			m = Pattern_RESP_GTBTC.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTBTC UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = Integer.valueOf(m.group(5));
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = getSatUsed(navHdop);
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml><mcc>" + m.group(12) + "</mcc>" + "<mnc>"
-					+ m.group(13) + "</mnc>" + "<lac>" + m.group(14) + "</lac>"
-					+ "<cell>" + m.group(15) + "</cell>" + "<odo>"
-					+ m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = Double.valueOf(m.group(5));
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = getSatUsed(dasnHdop);
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTSTC.matcher(packet).matches()) {
 			m = Pattern_RESP_GTSTC.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTSTC UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = Integer.valueOf(m.group(5));
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = getSatUsed(navHdop);
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml><mcc>" + m.group(12) + "</mcc>" + "<mnc>"
-					+ m.group(13) + "</mnc>" + "<lac>" + m.group(14) + "</lac>"
-					+ "<cell>" + m.group(15) + "</cell>" + "<odo>"
-					+ m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = Double.valueOf(m.group(5));
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = getSatUsed(dasnHdop);
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTSTT.matcher(packet).matches()) {
 			m = Pattern_RESP_GTSTT.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTSTT UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = Integer.valueOf(m.group(5));
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = getSatUsed(navHdop);
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml><mcc>" + m.group(12) + "</mcc>" + "<mnc>"
-					+ m.group(13) + "</mnc>" + "<lac>" + m.group(14) + "</lac>"
-					+ "<cell>" + m.group(15) + "</cell>" + "<odo>"
-					+ m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = Double.valueOf(m.group(5));
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = getSatUsed(dasnHdop);
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTPDP.matcher(packet).matches()) {
 			m = Pattern_RESP_GTPDP.matcher(packet);
@@ -927,18 +901,19 @@ public class ModNovacom {
 			m = Pattern_RESP_GTSWG.matcher(packet);
 			m.matches();
 			logger.debug("Тип пакета GTSWG UID : " + getUID(m.group(3)));
-			IMEI = getUID(m.group(3));
-			navHdop = Integer.valueOf(m.group(5));
-			navLongitude = m.group(9);
-			navLatitude = m.group(10);
-			navDateTime = m.group(11);
-			navSatUsed = getSatUsed(navHdop);
-			navSog = Float.valueOf(m.group(6)).floatValue();
-			navCource = Integer.valueOf(m.group(7));
-			navXML = "<xml><mcc>" + m.group(12) + "</mcc>" + "<mnc>"
-					+ m.group(13) + "</mnc>" + "<lac>" + m.group(14) + "</lac>"
-					+ "<cell>" + m.group(15) + "</cell>" + "<odo>"
-					+ m.group(16) + "</odo>" + "</xml>";
+			dasnUid = getUID(m.group(3));
+			dasnHdop = Double.valueOf(m.group(5));
+			dasnLongitude = Double.valueOf(m.group(9));
+			dasnLatitude = Double.valueOf(m.group(10));
+			dasnDatetime = DSF.parse(m.group(11));
+			dasnSatUsed = getSatUsed(dasnHdop);
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnValues.put("MCC", m.group(12));
+			dasnValues.put("MNC", m.group(13));
+			dasnValues.put("LAC", m.group(14));
+			dasnValues.put("CEL", m.group(15));
+			dasnValues.put("ODO", m.group(16));
 			isNavigate = true;
 		} else if (Pattern_RESP_GTGSM.matcher(packet).matches()) {
 			m = Pattern_RESP_GTGSM.matcher(packet);
@@ -962,25 +937,25 @@ public class ModNovacom {
 		return String.valueOf(uid);
 	}
 
-	private int getSatUsed(int navHdopInfo) {
-		int satUsed = 0;
+	private Long getSatUsed(Double navHdopInfo) {
+		Long satUsed = 0L;
 		if (navHdopInfo == 0) {
-			satUsed = 0;
+			satUsed = 0L;
 		} else if (navHdopInfo == 1) {
-			satUsed = 12; // максимальная точность
+			satUsed = 12L; // максимальная точность
 		} else if (navHdopInfo < 7) {
-			satUsed = 6;
+			satUsed = 6L;
 		} else if (navHdopInfo < 9) {
-			satUsed = 6;
+			satUsed = 6L;
 		} else if (navHdopInfo < 20) {
-			satUsed = 4;
+			satUsed = 4L;
 		} else {
-			satUsed = 3;
+			satUsed = 3L;
 		}
 		if (satUsed == 0) {
-			navStatus = 0;
+			dasnStatus = DATA_STATUS.ERR;
 		} else {
-			navStatus = 1;
+			dasnStatus = DATA_STATUS.OK;
 		}
 		return satUsed;
 	}

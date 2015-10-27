@@ -1,20 +1,16 @@
 package ru.novoscan.trkpd.utils;
 
-import java.math.BigInteger;
 import java.sql.Connection;
-import java.util.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.Map.Entry;
-
 
 import org.apache.log4j.Logger;
 import org.postgresql.ds.PGPoolingDataSource;
 
+import ru.novoscan.trkpd.domain.DataSensor;
 import ru.novoscan.trkpd.resources.ModConstats;
 
 public class TrackPgUtils implements ModConstats {
@@ -22,10 +18,6 @@ public class TrackPgUtils implements ModConstats {
 	private static final Logger logger = Logger.getLogger(TrackPgUtils.class);
 
 	private Connection db; // A connection to the database
-
-	private HashMap<String, String> ds;
-
-	private HashMap<Integer, BigInteger> values;
 
 	private ResultSet resultSet;
 
@@ -39,8 +31,6 @@ public class TrackPgUtils implements ModConstats {
 
 	private PreparedStatement ps;
 
-	private Timestamp dasnDateTime;
-
 	private String pgDatabaseName;
 
 	private String pgUser;
@@ -51,8 +41,8 @@ public class TrackPgUtils implements ModConstats {
 
 	private final PGPoolingDataSource pgds = new PGPoolingDataSource();
 
-	
-	private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss.ms");
+	private final SimpleDateFormat dateFormatFull = new SimpleDateFormat(
+			DATE_FORMAT_FULL);
 
 	public String getPgHost() {
 		return pgHost;
@@ -64,6 +54,12 @@ public class TrackPgUtils implements ModConstats {
 
 	private int pgPort;
 
+	private DataSensor dataSensor;
+
+	private final ModConfig config;
+
+	private String valuesData;
+
 	/*
 	 * String vehicleId; int dasnUid; String dasnDateTime; float dasnLatitude;
 	 * float dasnLongitude; int dasnStatus; int dasnSatUsed; int dasnZoneAlarm;
@@ -72,15 +68,8 @@ public class TrackPgUtils implements ModConstats {
 	 * float dasnTemp; int8 i_spmt_id;
 	 */
 
-	public Date getDasnDateTime() {
-		return dasnDateTime;
-	}
-
-	public void setDasnDateTime(Date dasnDateTime) {
-		this.dasnDateTime = new java.sql.Timestamp(dasnDateTime.getTime()); 
-	}
-
 	public TrackPgUtils(ModConfig config) throws SQLException {
+		this.config = config;
 		this.setPgPasswd(config.getPgPasswd());
 		this.setPgUser(config.getPgUser());
 		this.setPgDatabaseName(config.getPgDatabaseName());
@@ -96,335 +85,164 @@ public class TrackPgUtils implements ModConstats {
 		pgds.setMaxConnections(config.getPgMaxConn());
 	}
 
-
-	public void setDataSensor(HashMap<String, String> ds, Date navDateTime) {
-		this.ds = ds;
-		this.dasnDateTime = new java.sql.Timestamp(navDateTime.getTime());
-	}
-
-	public void setDataValues(HashMap<Integer, BigInteger> values) {
-		this.values = values;
-	}
-
-	public void setDataSensorValues(HashMap<String, String> ds, Date date,
-			HashMap<Integer, BigInteger> values) {
-		this.ds = ds;
-		this.values = values;
-		this.dasnDateTime = new java.sql.Timestamp(date.getTime());
-	}
-
 	public void addDataSensor() throws SQLException {
-		String xmlData;
-		if (ds.containsKey("dasnXML")) {
-			xmlData = ds.get("dasnXML").toString();
-		} else if (values.size() > 0) {
+		if (dataSensor.getDasnValues().size() > 0) {
 			StringBuffer stringBuffer = new StringBuffer();
-			for (Entry<Integer, BigInteger> entry : values.entrySet()) {
+			for (Entry<String, String> entry : dataSensor.getDasnValues()
+					.entrySet()) {
 				stringBuffer.append(entry.getKey()).append("=")
 						.append(entry.getValue()).append(";");
 			}
-			xmlData = stringBuffer.deleteCharAt(stringBuffer.length() - 1)
+			valuesData = stringBuffer.deleteCharAt(stringBuffer.length() - 1)
 					.toString();
 		} else {
-			xmlData = "";
-		}
-		int type = 500;
-		if (ds.containsKey("type")) {
-			type = Integer.parseInt(ds.get("type").toString());
+			valuesData = null;
 		}
 		try {
-			if (type == 501) {
-				logger.debug(new StringBuffer().append("SQL Statment : ")
-						.append("SELECT spmd_id").append("      ,spmd_spob_id")
-						.append("  FROM sprv_modules")
-						.append(" WHERE spmd_uid::varchar = '")
-						.append(ds.get("vehicleId")).append("'").toString());
-				ps = db.prepareStatement(new StringBuffer()
-						.append("SELECT spmd_id ")
-						.append("      ,spmd_spob_id)")
-						.append("  FROM sprv_modules ")
-						.append(" WHERE spmd_uid::varchar = ?").toString());
 
-				if (ds.get("vehicleId") == null) {
-					ps.setNull(1, java.sql.Types.VARCHAR);
+			logger.debug(new StringBuffer().append("SQL Statment : ")
+					.append("SELECT ").append("add_data_sensor('")
+					.append(dataSensor.getDasnUid()).append("'::varchar,")
+					.append(dataSensor.getDasnUid()).append("::int8,'")
+					.append(dateFormatFull.format(dataSensor.getDasnDatetime()))
+					.append("'::timestamp,")
+					.append(dataSensor.getDasnLatitude()).append("::float8,")
+					.append(dataSensor.getDasnLongitude()).append("::float8,")
+					.append(dataSensor.getDasnStatus()).append("::int4,")
+					.append(dataSensor.getDasnSatUsed()).append("::int4,")
+					.append(dataSensor.getDasnZoneAlarm()).append("::int4,")
+					.append(dataSensor.getDasnMacroId()).append("::int4,")
+					.append(dataSensor.getDasnMacroSrc()).append("::int4,")
+					.append(dataSensor.getDasnSog()).append("::float8,")
+					.append(dataSensor.getDasnCourse()).append("::float8,")
+					.append(dataSensor.getDasnHdop()).append("::float8,")
+					.append(dataSensor.getDasnHgeo()).append("::float8,")
+					.append(dataSensor.getDasnHmet()).append("::float8,")
+					.append(dataSensor.getDasnGpio()).append("::int4,")
+					.append(dataSensor.getDasnAdc()).append("::int8,")
+					.append(dataSensor.getDasnTemp()).append("::float8,")
+					.append("1::int4,'").append(valuesData).append("'::text,")
+					.append("now()::timestamp,")
+					.append(dataSensor.getDasnType()).append(")").toString());
+			ps = db.prepareStatement(new StringBuffer().append("SELECT ")
+					.append("add_data_sensor").append("(?::varchar")
+					// 1 идентификатор блока.
+					.append(",?::int8")
+					// 2 - идентификатор записи лога
+					.append(",?::timestamp") // 3
+												// -Дата
+												// время
+												// с
+												// таймзоной
+					.append(",?::float8") // 4 - latitude Географическая
+											// долгота
+					.append(",?::float8") // 5 - longitude Географическая
+											// широта
+					.append(",?::int4") // 6 - int4 -- Флаг состояний
+					.append(",?::int4") // 7 - int4 -- Количество спутников
+					.append(",?::int4") // 8 - int4 -- Состояние тревога зон
+										// охраны
+					.append(",?::int4") // 9 - int4 -- Номер макроса
+					.append(",?::int4") // 10 - int4 -- Код источника
+					.append(",?::float8") // 11 - float8 -- Скорость в км/ч
+					.append(",?::float8") // 12 - float8 -- Курс в градусах
+					.append(",?::float8") // 13 - float8 -- Значение HDOP
+					.append(",?::float8") // 14 - float8 -- Значение HGEO
+					.append(",?::float8") // 15 - float8 -- Значение HMET
+					.append(",?::int4") // 16 - int4 -- Состояние IO
+					.append(",?::int8") // 17 - int8 -- Состояние аналоговых
+										// входов
+					.append(",?::float8") // 18 - float8 -- Температура С
+					.append(",1::int4") // 19 - int4 -- Тип данных
+					.append(",?::text") // 20 -
+																	// text
+																	// Дополнтельные
+																	// данные.
+					.append(",now()::timestamp") // 21 - timestamp Дата
+													// модификации
+					.append(",?::int8)") // идентификатор типа блока
+					.toString());
+			if (dataSensor.isValid()) {
+				ps.setString(1, String.valueOf(dataSensor.getDasnUid()));
+				ps.setLong(2, Long.parseLong(dataSensor.getDasnUid()));
+				ps.setTimestamp(3, dataSensor.getDasnTimestamp());
+				ps.setDouble(4, dataSensor.getDasnLatitude());
+				ps.setDouble(5, dataSensor.getDasnLongitude());
+				if (dataSensor.getDasnStatus() == null) {
+					ps.setNull(6, java.sql.Types.LONGVARBINARY);
 				} else {
-					ps.setString(1, ds.get("vehicleId").toString());
+					ps.setLong(6, dataSensor.getDasnStatus());
 				}
-				resultSet = ps.executeQuery();
-				double spmdId = 0;
-				while (resultSet.next()) {
-					spmdId = resultSet.getDouble("spmd_id");
-					logger.debug(new StringBuffer().append("Module found : ")
-							.append(resultSet.getDouble("spmd_id")).toString());
-				}
-				if (spmdId == 0) {
-					logger.debug(new StringBuffer().append("SQL Statment : ")
-							.append("SELECT add_object(0, 0, '")
-							.append(ds.get("n")).append("'::varchar")
-							.append(",'").append(ds.get("c"))
-							.append("'::varchar)").toString());
-					ps = db.prepareStatement("SELECT add_object(0, 0, ?::varchar, ?::varchar)");
-					if (ds.get("n") == null) {
-						ps.setNull(1, java.sql.Types.VARCHAR);
-					} else {
-						ps.setString(1, ds.get("n").toString());
-					}
-					if (ds.get("c") == null) {
-						ps.setNull(2, java.sql.Types.VARCHAR);
-					} else {
-						ps.setString(2, ds.get("c").toString());
-					}
-					resultSet = ps.executeQuery();
-					double spobId = 0;
-					while (resultSet.next()) {
-						spobId = resultSet.getDouble(1);
-						logger.debug(new StringBuffer()
-								.append("Create Object : ").append(spobId)
-								.toString());
-					}
-					logger.debug(new StringBuffer().append("SQL Statment : ")
-							.append("SELECT add_module_combine (")
-							.append(ds.get("vehicleId")).append("::float8,'")
-							.append(ds.get("n")).append("'::varchar,")
-							.append(ds.get("f")).append("'::varchar,")
-							.append(",").append(spobId).append("::int8")
-							.append(",500::int8").toString());
-					ps = db.prepareStatement(new StringBuffer()
-							.append("SELECT add_module_combine ")
-							.append("(?::float8")// uid
-							.append(",?::varchar")// name
-							.append(",?::varchar")// imei
-							.append(",?::varchar")// numb
-							.append(",?::varchar")// desc
-							.append(",?::int8")// spob_id
-							.append(",?::int8")// spmt_id
-							.append(")").toString());
-					if (ds.get("vehicleId") == null) {
-						ps.setNull(1, java.sql.Types.DOUBLE);
-					} else {
-						ps.setDouble(1,
-								Double.valueOf(ds.get("vehicleId").toString()));
-					}
-					if (ds.get("n") == null) {
-						ps.setNull(2, java.sql.Types.VARCHAR);
-					} else {
-						ps.setString(2, ds.get("n").toString());
-					}
-					ps.setString(3, "-");
-					if (ds.get("s") == null) {
-						ps.setNull(4, java.sql.Types.VARCHAR);
-					} else {
-						ps.setString(4, ds.get("s").toString());
-					}
-					if (ds.get("f") == null) {
-						ps.setNull(5, java.sql.Types.VARCHAR);
-					} else {
-						ps.setString(5, ds.get("f").toString());
-					}
-					// ид объекта
-					ps.setDouble(6, spobId);
-					ps.setLong(7, 500);
-					resultSet = ps.executeQuery();
-					resultSet.next();
-					logger.debug(new StringBuffer().append("Create Module : ")
-							.append(resultSet.getDouble(1)));
-
-				}
-			} else {
-				logger.debug(new StringBuffer().append("SQL Statment : ")
-						.append("SELECT ").append("add_data_sensor('")
-						.append(ds.get("vehicleId")).append("'::varchar,")
-						.append(ds.get("vehicleId")).append("::int8,'")
-						.append(dateFormat.format(dasnDateTime)).append("'::timestamp,")
-						.append(ds.get("dasnLatitude")).append("::float8,")
-						.append(ds.get("dasnLongitude")).append("::float8,")
-						.append(ds.get("dasnStatus")).append("::int4,")
-						.append(ds.get("dasnSatUsed")).append("::int4,")
-						.append(ds.get("dasnZoneAlarm")).append("::int4,")
-						.append(ds.get("dasnMacroId")).append("::int4,")
-						.append(ds.get("dasnMacroSrc")).append("::int4,")
-						.append(ds.get("dasnSog")).append("::float8,")
-						.append(ds.get("dasnCource")).append("::float8,")
-						.append(ds.get("dasnHdop")).append("::float8,")
-						.append(ds.get("dasnHgeo")).append("::float8,")
-						.append(ds.get("dasnHmet")).append("::float8,")
-						.append(ds.get("dasnGpio")).append("::int4,")
-						.append(ds.get("dasnAdc")).append("::int8,")
-						.append(ds.get("dasnTemp")).append("::float8,")
-						.append("1::int4,'").append(xmlData).append("'::text,")
-						.append("now()::timestamp,")
-						.append(ds.get("i_spmt_id")).append(")").toString());
-				ps = db.prepareStatement(new StringBuffer().append("SELECT ")
-						.append("add_data_sensor").append("(?::varchar")
-						// 1 идентификатор блока.
-						.append(",?::int8")
-						// 2 - идентификатор записи лога
-						.append(",?::timestamp") // 3
-													// -Дата
-													// время
-													// с
-													// таймзоной
-						.append(",?::float8") // 4 - latitude Географическая
-												// долгота
-						.append(",?::float8") // 5 - longitude Географическая
-												// широта
-						.append(",?::int4") // 6 - int4 -- Флаг состояний
-						.append(",?::int4") // 7 - int4 -- Количество спутников
-						.append(",?::int4") // 8 - int4 -- Состояние тревога зон
-											// охраны
-						.append(",?::int4") // 9 - int4 -- Номер макроса
-						.append(",?::int4") // 10 - int4 -- Код источника
-						.append(",?::float8") // 11 - float8 -- Скорость в км/ч
-						.append(",?::float8") // 12 - float8 -- Курс в градусах
-						.append(",?::float8") // 13 - float8 -- Значение HDOP
-						.append(",?::float8") // 14 - float8 -- Значение HGEO
-						.append(",?::float8") // 15 - float8 -- Значение HMET
-						.append(",?::int4") // 16 - int4 -- Состояние IO
-						.append(",?::int8") // 17 - int8 -- Состояние аналоговых
-											// входов
-						.append(",?::float8") // 18 - float8 -- Температура С
-						.append(",1::int4") // 19 - int4 -- Тип данных
-						.append(",'").append(xmlData).append("'::text") // 20 -
-																		// text
-																		// Дополнтельные
-																		// данные.
-						.append(",now()::timestamp") // 21 - timestamp Дата
-														// модификации
-						.append(",?::int8)") // идентификатор типа блока
-						.toString());
-				if (ds.get("vehicleId") == null) {
-					ps.setNull(1, java.sql.Types.VARCHAR);
+				if (dataSensor.getDasnSatUsed() == null) {
+					ps.setNull(7, java.sql.Types.LONGVARBINARY);
 				} else {
-					ps.setString(1, ds.get("vehicleId").toString());
+					ps.setLong(7, dataSensor.getDasnSatUsed());
 				}
-				if (ds.get("vehicleId") == null) {
-					ps.setNull(2, java.sql.Types.INTEGER);
+				if (dataSensor.getDasnZoneAlarm() == null) {
+					ps.setNull(8, java.sql.Types.LONGVARBINARY);
 				} else {
-					ps.setLong(2, Long.valueOf(ds.get("vehicleId").toString())
-							.longValue());
+					ps.setLong(8, dataSensor.getDasnZoneAlarm());
 				}
-				if (dasnDateTime == null) {
-					ps.setNull(3, java.sql.Types.DATE);
+				if (dataSensor.getDasnMacroId() == null) {
+					ps.setNull(9, java.sql.Types.LONGVARBINARY);
 				} else {
-					ps.setTimestamp(3, dasnDateTime);
+					ps.setLong(9, dataSensor.getDasnMacroId());
 				}
-				if (ds.get("dasnLatitude") == null) {
-					ps.setNull(4, java.sql.Types.FLOAT);
-				} else {
-					ps.setFloat(4,
-							Float.valueOf(ds.get("dasnLatitude").toString())
-									.floatValue());
-				}
-				if (ds.get("dasnLongitude") == null) {
-					ps.setNull(5, java.sql.Types.FLOAT);
-				} else {
-					ps.setFloat(5,
-							Float.valueOf(ds.get("dasnLongitude").toString())
-									.floatValue());
-				}
-				if (ds.get("dasnStatus") == null) {
-					ps.setNull(6, java.sql.Types.INTEGER);
-				} else {
-					ps.setInt(6,
-							Integer.valueOf((ds.get("dasnStatus").toString()))
-									.intValue());
-				}
-				if (ds.get("dasnSatUsed") == null) {
-					ps.setNull(7, java.sql.Types.INTEGER);
-				} else {
-					ps.setInt(7,
-							Integer.valueOf((ds.get("dasnSatUsed").toString()))
-									.intValue());
-				}
-				if (ds.get("dasnZoneAlarm") == null) {
-					ps.setNull(8, java.sql.Types.INTEGER);
-				} else {
-					ps.setInt(
-							8,
-							Integer.valueOf(
-									(ds.get("dasnZoneAlarm").toString()))
-									.intValue());
-				}
-				if (ds.get("dasnMacroId") == null) {
-					ps.setNull(9, java.sql.Types.INTEGER);
-				} else {
-					ps.setInt(9,
-							Integer.valueOf((ds.get("dasnMacroId").toString()))
-									.intValue());
-				}
-				if (ds.get("dasnMacroSrc") == null) {
+				if (dataSensor.getDasnMacroSrc() == null) {
 					ps.setNull(10, java.sql.Types.INTEGER);
 				} else {
-					ps.setInt(
-							10,
-							Integer.valueOf((ds.get("dasnMacroSrc").toString()))
-									.intValue());
+					ps.setLong(10, dataSensor.getDasnMacroSrc());
 				}
-				if (ds.get("dasnSog") == null) {
-					ps.setNull(11, java.sql.Types.FLOAT);
+				if (dataSensor.getDasnSog() == null) {
+					ps.setNull(11, java.sql.Types.DOUBLE);
 				} else {
-					ps.setFloat(11,
-							Float.valueOf((ds.get("dasnSog").toString()))
-									.floatValue());
+					ps.setDouble(11, dataSensor.getDasnSog());
 				}
-				if (ds.get("dasnCource") == null) {
-					ps.setNull(12, java.sql.Types.FLOAT);
+				if (dataSensor.getDasnCourse() == null) {
+					ps.setNull(12, java.sql.Types.DOUBLE);
 				} else {
-					ps.setFloat(12,
-							Float.valueOf((ds.get("dasnCource").toString()))
-									.floatValue());
+					ps.setDouble(12, dataSensor.getDasnCourse());
 				}
-				if (ds.get("dasnHdop") == null) {
-					ps.setNull(13, java.sql.Types.FLOAT);
+				if (dataSensor.getDasnHdop() == null) {
+					ps.setNull(13, java.sql.Types.DOUBLE);
 				} else {
-					ps.setFloat(13,
-							Float.valueOf((ds.get("dasnHdop").toString()))
-									.floatValue());
+					ps.setDouble(13, dataSensor.getDasnHdop());
 				}
-				if (ds.get("dasnHgeo") == null) {
-					ps.setNull(14, java.sql.Types.FLOAT);
+				if (dataSensor.getDasnHgeo() == null) {
+					ps.setNull(14, java.sql.Types.DOUBLE);
 				} else {
-					ps.setFloat(14,
-							Float.valueOf((ds.get("dasnHgeo").toString()))
-									.floatValue());
+					ps.setDouble(14, dataSensor.getDasnHgeo());
 				}
-				if (ds.get("dasnHmet") == null) {
-					ps.setNull(15, java.sql.Types.FLOAT);
+				if (dataSensor.getDasnHmet() == null) {
+					ps.setNull(15, java.sql.Types.DOUBLE);
 				} else {
-					ps.setFloat(15,
-							Float.valueOf((ds.get("dasnHmet").toString()))
-									.floatValue());
+					ps.setDouble(15, dataSensor.getDasnHmet());
 				}
-				if (ds.get("dasnGpio") == null) {
-					ps.setNull(16, java.sql.Types.INTEGER);
+				if (dataSensor.getDasnGpio() == null) {
+					ps.setNull(16, java.sql.Types.LONGVARBINARY);
 				} else {
-					ps.setInt(16,
-							Integer.valueOf((ds.get("dasnGpio").toString()))
-									.intValue());
+					ps.setLong(16, dataSensor.getDasnGpio());
 				}
-				if (ds.get("dasnAdc") == null) {
-					ps.setNull(17, java.sql.Types.INTEGER);
+				if (dataSensor.getDasnAdc() == null) {
+					ps.setNull(17, java.sql.Types.LONGVARBINARY);
 				} else {
-					ps.setLong(17, Long.valueOf((ds.get("dasnAdc").toString()))
-							.longValue());
+					ps.setLong(17, dataSensor.getDasnAdc());
 				}
-				if (ds.get("dasnTemp") == null) {
-					ps.setNull(18, java.sql.Types.FLOAT);
+				if (dataSensor.getDasnTemp() == null) {
+					ps.setNull(18, java.sql.Types.DOUBLE);
 				} else {
-					ps.setFloat(18,
-							Float.valueOf((ds.get("dasnTemp").toString()))
-									.floatValue());
+					ps.setDouble(18, dataSensor.getDasnTemp());
 				}
-				if (ds.get("i_spmt_id") == null) {
-					ps.setNull(19, java.sql.Types.INTEGER);
+				ps.setLong(19, dataSensor.getDasnType());
+				if (valuesData == null) {
+					ps.setNull(20,java.sql.Types.LONGVARCHAR);
 				} else {
-					ps.setLong(19,
-							Long.valueOf((ds.get("i_spmt_id").toString()))
-									.longValue());
+					ps.setString(20, valuesData);
 				}
-				resultSet = ps.executeQuery();
-				db.commit();
+				ps.setLong(21, config.getModType());
 			}
+			resultSet = ps.executeQuery();
+			db.commit();
 
 		} catch (Exception e) {
 			closeStatment();
@@ -561,29 +379,30 @@ public class TrackPgUtils implements ModConstats {
 	public void setPgPort(int pgPort) {
 		this.pgPort = pgPort;
 	}
-	
+
 	private void closeStatment() {
 		try {
-			if(this.ps != null && !this.ps.isClosed()) {
+			if (this.ps != null && !this.ps.isClosed()) {
 				ps.close();
 			}
 		} catch (SQLException e) {
 
 		}
 	}
+
 	private void closeExexute() {
 		try {
-			if(this.resultSet != null && !this.resultSet.isClosed()) {
+			if (this.resultSet != null && !this.resultSet.isClosed()) {
 				resultSet.close();
 			}
-			if(this.result != null && !this.result.isClosed()) {
+			if (this.result != null && !this.result.isClosed()) {
 				result.close();
 			}
 		} catch (SQLException e) {
 
 		}
 	}
-	
+
 	public void close() throws SQLException {
 		closeExexute();
 		closeStatment();
@@ -595,6 +414,10 @@ public class TrackPgUtils implements ModConstats {
 
 	public void connect() throws SQLException {
 		this.db = this.pgds.getConnection();
+	}
+
+	public void setDataSensorValues(DataSensor dataSensor) {
+		this.dataSensor = dataSensor;
 	}
 
 }

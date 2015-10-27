@@ -42,23 +42,32 @@ public interface ModConstats {
 
 	public final static int TERM_TYPE_EGTS = 900;
 
+	public final static int TERM_TYPE_WIALON = 307;
+	
 	public final static int IMEI_LENGTH = 15;
 
 	public final static int SCOUT_MAX_PACKET_LENGTH = 32768;
 
 	//
 
+	public final static char CTRN = 0x0D;
+
+	public final static char CTRL = 0x0A;
+	
 	public final static String SQL_DATE_FORMAT = "YYYYMMDDHH24:MI:SS.MS";
+	
+	public static final String SQL_DATE_SIMPLE_FORMAT = "DDMMYYHH24MISS";
 
 	public final static TimeZone TIME_ZONE = TimeZone.getTimeZone("UTC");
-	
-	public final static int TZ_OFFSET = Calendar.getInstance().getTimeZone().getRawOffset();
 
 	public static final String DATE_FORMAT = "yyyyMMddHH:mm:ss";
 
-	public static final String SQL_DATE_SIMPLE_FORMAT = "DDMMYYHH24MISS";
-
 	public static final String DATE_SIMPLE_FORMAT = "ddMMyyHHmmss";
+	
+	public static final String DATE_FORMAT_FULL = "yyyyMMdd HH:mm:ss.SSS";
+	
+	public final static int TZ_OFFSET = Calendar.getInstance().getTimeZone().getRawOffset();
+	
 
 	public final static long TICKS_AT_EPOCH = 621355968000000000L;
 
@@ -433,5 +442,10 @@ public interface ModConstats {
 	public int EGTS_TP_HEADER_CRC_LEN = 1;
 
 	public int EGTS_TP_APP_CRC_LEN = 2;
+	
+	public enum SERVER {TCP, UDP};
+	public enum DATA_STATUS {
+		OK, ERR
+	};
 
 }

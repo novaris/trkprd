@@ -5,18 +5,17 @@ import java.net.DatagramSocket;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModTranskomT15 implements ModConstats {
+public class ModTranskomT15 extends Terminal {
 	static Logger logger = Logger.getLogger(ModTranskomT15.class);
 
 	/*
@@ -27,7 +26,8 @@ public class ModTranskomT15 implements ModConstats {
 	 * число, км/ч course курс, целое число, градусы height высота, целое число,
 	 * в метрах sats количество спутников, целое число
 	 */
-	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+	private final SimpleDateFormat DSF = new SimpleDateFormat(
+			DATE_SIMPLE_FORMAT);
 
 	private static final Pattern patternTranskomT15 = Pattern.compile(
 			"^(\\d{15})" // IMEI 1
@@ -61,10 +61,9 @@ public class ModTranskomT15 implements ModConstats {
 
 	private byte[] dataByte;
 
-	private HashMap<String, String> map = new HashMap<String, String>();
-
 	public ModTranskomT15(DatagramPacket dataPacket,
-			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon) throws ParseException {
+			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon)
+			throws ParseException {
 		data = "";
 		dataByte = dataPacket.getData();
 		for (int i = 0; i < dataPacket.getLength(); i++) {
@@ -75,40 +74,35 @@ public class ModTranskomT15 implements ModConstats {
 			data = data + (char) dataByte[i];
 		}
 		logger.debug("Read data: \"" + data + "\"");
-			Matcher m = patternTranskomT15.matcher(data);
-			if (m.matches()) {
-				float dasnLatitude = ModUtils.getGGMM(m.group(4) + m.group(5));
-				if (m.group(6).equals("S")) {
-					dasnLatitude = -dasnLatitude;
-				}
-				float dasnLongitude = ModUtils.getGGMM(m.group(7) + m.group(8));
-				if (m.group(9).equals("W")) {
-					dasnLongitude = -dasnLongitude;
-				}
-				int dasnSatUsed = Integer.parseInt(m.group(13), 10);
-				int dasnStatus = 0;
-				if (dasnSatUsed > 3) {
-					dasnStatus = 1;
-				}
-				map.put("vehicleId", m.group(1));
-				map.put("dasnUid", m.group(1));
-				map.put("dasnLatitude", String.valueOf(dasnLatitude));
-				map.put("dasnLongitude", String.valueOf(dasnLongitude));
-				map.put("dasnStatus", String.valueOf(dasnStatus));
-				map.put("dasnSatUsed", String.valueOf(dasnSatUsed));
-				map.put("dasnZoneAlarm", null);
-				map.put("dasnMacroId", null);
-				map.put("dasnMacroSrc", null);
-				map.put("dasnSog", m.group(10));
-				map.put("dasnCource", m.group(11));
-				map.put("dasnHdop", null);
-				map.put("dasnHgeo", m.group(12));
-				map.put("dasnHmet", null);
-				map.put("dasnGpio", null);
-				map.put("dasnAdc", null);
-				map.put("dasnTemp", null);
-				map.put("i_spmt_id", Integer.toString(conf.getModType()));
-				pgcon.setDataSensor(map, sdf.parse(m.group(2) + m.group(3)));
+		Matcher m = patternTranskomT15.matcher(data);
+		if (m.matches()) {
+			dasnLatitude = Double.valueOf(ModUtils.getGGMM(m.group(4)
+					+ m.group(5)));
+			if (m.group(6).equals("S")) {
+				dasnLatitude = -dasnLatitude;
+			}
+			dasnLongitude = Double.valueOf(ModUtils.getGGMM(m.group(7)
+					+ m.group(8)));
+			if (m.group(9).equals("W")) {
+				dasnLongitude = -dasnLongitude;
+			}
+			dasnSatUsed = Long.parseLong(m.group(13), 10);
+			dasnStatus = DATA_STATUS.ERR;
+			if (dasnSatUsed > 3) {
+				dasnStatus = DATA_STATUS.OK;
+			}
+			if (dasnStatus == DATA_STATUS.OK) {
+				dataSensor.setDasnUid(m.group(1));
+				dataSensor.setDasnDatetime(DSF.parse(m.group(2) + m.group(3)));
+				dataSensor.setDasnLatitude(dasnLatitude);
+				dataSensor.setDasnLongitude(dasnLongitude);
+				dataSensor.setDasnStatus(1L);
+				dataSensor.setDasnSatUsed(dasnSatUsed);
+
+				dataSensor.setDasnSog(Double.valueOf(m.group(10)));
+				dataSensor.setDasnCourse(Double.valueOf(m.group(11)));
+				dataSensor.setDasnHgeo(Double.valueOf(m.group(12)));
+				pgcon.setDataSensorValues(dataSensor);
 				// Ответ блоку
 				try {
 					pgcon.addDataSensor();
@@ -116,14 +110,13 @@ public class ModTranskomT15 implements ModConstats {
 				} catch (SQLException e) {
 					logger.warn("Error Writing Database : " + e.getMessage());
 				}
-				map.clear();
-			} else if (data.equals("+++")) {
-				logger.debug("Ignore data : \"" + data + "\"");
-				map.clear();
-			} else {
-				logger.error("Unknown packet data : \"" + data + "\"");
-				map.clear();
 			}
+		} else if (data.equals("+++")) {
+			logger.debug("Ignore data : \"" + data + "\"");
+		} else {
+			logger.error("Unknown packet data : \"" + data + "\"");
+		}
+		this.clear();
 
 	}
 

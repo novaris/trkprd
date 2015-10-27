@@ -10,11 +10,10 @@ import java.io.InputStreamReader;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
@@ -23,9 +22,8 @@ import ru.novoscan.trkpd.utils.TrackPgUtils;
  * @author kur
  * 
  */
-public class ModUtp5 implements ModConstats {
+public class ModUtp5 extends Terminal {
 
-	private int navDeviceID;
 
 	private int navPacketSize;
 
@@ -33,35 +31,17 @@ public class ModUtp5 implements ModConstats {
 
 	private int navSoftVersion;
 
-	private int navDeviceStatus;
-
 	private int navValid;
 
 	private long navTime;
 
 	private long navDate;
 
-	private float navLatitude;
-
-	private float navLongitude;
-
-	private float navHeight;
-
-	private float navSpeed;
-
-	private float navCource;
-
-	private float navHdop;
-
-	private int navSatellitesCount;
-
 	private int navCRC;
 
 	private int navCheckCRC;
 
 	private float navAcs;
-
-	private float navPower;
 
 	static Logger logger = Logger.getLogger(ModUtp5.class);
 
@@ -71,8 +51,6 @@ public class ModUtp5 implements ModConstats {
 
 	private static int maxPacketSize;
 
-	private HashMap<String, String> map = new HashMap<String, String>();
-
 	private ModUtils utl = new ModUtils();
 
 	private int[] packet;
@@ -81,7 +59,7 @@ public class ModUtp5 implements ModConstats {
 
 	private int packetLength; // длина пакета по умолчанию
 
-	private String navIMEI;
+	private String navImei;
 
 	private String getOnePacketOK = "***1*\r\n";
 
@@ -92,6 +70,8 @@ public class ModUtp5 implements ModConstats {
 	private int navBatt;
 
 	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+
+	private int navStatus;
 
 	public ModUtp5(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
@@ -110,7 +90,7 @@ public class ModUtp5 implements ModConstats {
 				fullreadbytes = fullreadbytes + 1;
 				if (readbytes > maxPacketSize) {
 					logger.error("Over size " + maxPacketSize);
-					map.clear();
+					this.clear();
 					return;
 				} else {
 					/*
@@ -164,39 +144,30 @@ public class ModUtp5 implements ModConstats {
 						}
 
 						if (navSoftVersion == 0xA4
-								&& (navLatitude != 0 && navLongitude != 0)
+								&& (dasnLatitude != 0 && dasnLongitude != 0)
 								&& navValid == 0
 								&& navPacketSize == packetDataLength) {
-							map.put("vehicleId", Integer.toString(navDeviceID));
-							map.put("dasnUid", Integer.toString(navDeviceID));
-							map.put("dasnLatitude", String.valueOf(navLatitude));
-							map.put("dasnLongitude",
-									String.valueOf(navLongitude));
-							map.put("dasnStatus",
-									Integer.toString(navDeviceStatus));
-							map.put("dasnSatUsed",
-									Integer.toString(navSatellitesCount));
-							map.put("dasnZoneAlarm", null);
-							map.put("dasnMacroId", null);
-							map.put("dasnMacroSrc", null);
-							map.put("dasnSog", String.valueOf(navSpeed));
-							map.put("dasnCource", String.valueOf(navCource));
-							map.put("dasnHdop", String.valueOf(navHdop));
-							map.put("dasnHgeo", String.valueOf(navHeight));
-							map.put("dasnHmet", null);
-							map.put("dasnGpio", null);
-							map.put("dasnAdc", Float.toString(navPower));
-							map.put("dasnTemp", null);
-							map.put("i_spmt_id",
-									Integer.toString(conf.getModType()));
-							map.put("dasnXML", "<xml><acs>" + navAcs
-									+ "</acs><pw>" + navBatt + "</pw></xml>");
+							dasnDatetime = sdf.parse(utl.formatDate((int) navDate)
+									+ utl.cTime((int) navTime));
+							dataSensor.setDasnDatetime(dasnDatetime);
+							dataSensor.setDasnUid(dasnUid);
+							dataSensor.setDasnLatitude(dasnLatitude);
+							dataSensor.setDasnLongitude(
+									dasnLongitude);
+							dataSensor.setDasnStatus(1L);
+							dataSensor.setDasnSatUsed(dasnSatUsed);
+							dataSensor.setDasnSog(dasnSog);
+							dataSensor.setDasnCourse(dasnCourse);
+							dataSensor.setDasnHdop(dasnHdop);
+							dataSensor.setDasnHgeo(dasnHgeo);
+							dataSensor.setDasnAdc(dasnAdc);
+							
+							dasnValues.put("ACS", String.valueOf(navAcs));
+							dasnValues.put("PW", String.valueOf(navBatt));
+							dasnValues.put("ST", String.valueOf(navStatus));
+							dataSensor.setDasnValues(dasnValues);
 							// запись в БД
-
-							pgcon.setDataSensor(
-									map,
-									sdf.parse(utl.formatDate((int) navDate)
-											+ utl.cTime((int) navTime)));
+							pgcon.setDataSensorValues(dataSensor);
 							try {
 								pgcon.addDataSensor();
 								logger.debug("Write Database OK");
@@ -204,7 +175,7 @@ public class ModUtp5 implements ModConstats {
 								logger.warn("Error Writing Database : "
 										+ e.getMessage());
 							}
-							map.clear();
+							this.clear();
 						}
 						readbytes = 0;
 					} else {
@@ -241,7 +212,7 @@ public class ModUtp5 implements ModConstats {
 			// обработаем команды из очереди команд для данного блока
 			try {
 				logger.debug("Getting command");
-				pgcon.getCommand(Integer.toString(navDeviceID),
+				pgcon.getCommand(dasnUid,
 						conf.getModType());
 				long[] cmdIdTab = pgcon.getCommandId();
 				int commandCount = 0;
@@ -299,14 +270,14 @@ public class ModUtp5 implements ModConstats {
 		}
 		if (readbytes == packetDataLength) {
 			logger.debug("Parce first packet");
-			navDeviceID = (0x000000FF & packet[0])
-					+ ((0x000000FF & packet[1]) << 8);
-			logger.debug("Module ID : " + navDeviceID);
+			dasnUid = String.valueOf((0x000000FF & packet[0])
+					+ ((0x000000FF & packet[1]) << 8));
+			logger.debug("Module ID : " + dasnUid);
 			navPacketSize = (0x000000FF & packet[2]);
 			logger.debug("Packet Size : " + Integer.toString(navPacketSize));
 			navPacketType = (0x000000FF & packet[3]);
 			logger.debug("Packet Type : " + Integer.toString(navPacketType));
-			navIMEI = Integer.toString(0x000000FF & packet[4])
+			navImei = Integer.toString(0x000000FF & packet[4])
 					+ Integer.toString(0x000000FF & packet[5])
 					+ Integer.toString(0x000000FF & packet[6])
 					+ Integer.toString(0x000000FF & packet[7])
@@ -318,15 +289,15 @@ public class ModUtp5 implements ModConstats {
 					+ Integer.toString(0x000000FF & packet[13])
 					+ Integer.toString(0x000000FF & packet[14])
 					+ Integer.toString(0x000000FF & packet[15]);
-			logger.debug("IMEI : " + navIMEI);
+			logger.debug("IMEI : " + navImei);
 			// ответим что пакет прочитали
 			// logger.debug("Send " + getOnePacketOK);
 			// oDs.writeChars(getOnePacketOK);
 
-			if (pgcon.getImeiModule(navIMEI) > 0) {
-				logger.debug("IMEI found in database : " + navIMEI);
+			if (pgcon.getImeiModule(navImei) > 0) {
+				logger.debug("IMEI found in database : " + navImei);
 			} else {
-				logger.error("IMEI not found : " + navIMEI);
+				logger.error("IMEI not found : " + navImei);
 				return;
 			}
 		} else {
@@ -352,14 +323,14 @@ public class ModUtp5 implements ModConstats {
 		navSoftVersion = (0x000000FF & packet[7]);
 		logger.debug("Soft Version : "
 				+ Integer.toString(navSoftVersion, 16).toUpperCase());
-		navDeviceStatus = (0x000000FF & packet[8])
+		navStatus = (0x000000FF & packet[8])
 				+ ((0x000000FF & packet[9]) << 8);
-		logger.debug("Status : " + navDeviceStatus);
+		logger.debug("Status : " + dasnStatus);
 		navAcs = 0x000000FF & packet[10];
 		logger.debug("Acceleration : " + navAcs);
-		navPower = (0x000000FF & packet[27]) + ((0x000000FF & packet[28]) << 8);
-		navPower = navPower / 1000;
-		logger.debug("Power : " + navPower + " V");
+		dasnAdc =  (long) ((0x000000FF & packet[27]) + ((0x000000FF & packet[28]) << 8));
+		dasnAdc = dasnAdc / 1000;
+		logger.debug("Power : " + dasnAdc + " V");
 		navBatt = (0x000000FF & packet[29]) + ((0x000000FF & packet[30]) << 8);
 		navBatt = navBatt / 1000;
 		logger.debug("Batt : " + navBatt + " V");
@@ -371,26 +342,26 @@ public class ModUtp5 implements ModConstats {
 		navDate = utl.unsigned4Bytes(packet[36], packet[37], packet[38],
 				packet[39]) & 0xFFFFFFFFL;
 		logger.debug("Date : " + utl.formatDate((int) navDate));
-		navLatitude = utl.unsignedFloat4Bytes(packet[40], packet[41],
-				packet[42], packet[43]);
-		logger.debug("Lat : " + Float.toString(navLatitude));
-		navLongitude = utl.unsignedFloat4Bytes(packet[44], packet[45],
-				packet[46], packet[47]);
-		logger.debug("Lon  : " + navLongitude);
-		navHeight = utl.unsignedFloat4Bytes(packet[48], packet[49], packet[50],
-				packet[51]);
-		logger.debug("Hei : " + Float.toString(navHeight));
-		navSpeed = utl.unsignedFloat4Bytes(packet[52], packet[53], packet[54],
-				packet[55]);
-		logger.debug("Speed : " + navSpeed);
-		navCource = utl.unsignedFloat4Bytes(packet[56], packet[57], packet[58],
-				packet[59]);
-		logger.debug("Cource : " + navCource);
-		navHdop = utl.unsignedFloat4Bytes(packet[60], packet[61], packet[62],
-				packet[63]);
-		logger.debug("HDOP : " + navHdop);
-		navSatellitesCount = 0x000000FF & packet[64];
-		logger.debug("Satelites : " + navSatellitesCount);
+		dasnLatitude = Double.valueOf(utl.unsignedFloat4Bytes(packet[40], packet[41],
+				packet[42], packet[43]));
+		logger.debug("Lat : " + dasnLatitude);
+		dasnLongitude = Double.valueOf(utl.unsignedFloat4Bytes(packet[44], packet[45],
+				packet[46], packet[47]));
+		logger.debug("Lon  : " + dasnLongitude);
+		dasnHgeo = Double.valueOf(utl.unsignedFloat4Bytes(packet[48], packet[49], packet[50],
+				packet[51]));
+		logger.debug("Hgeo : " + dasnHgeo);
+		dasnSog = Double.valueOf(utl.unsignedFloat4Bytes(packet[52], packet[53], packet[54],
+				packet[55]));
+		logger.debug("Speed : " + dasnSog);
+		dasnCourse = Double.valueOf(utl.unsignedFloat4Bytes(packet[56], packet[57], packet[58],
+				packet[59]));
+		logger.debug("Cource : " + dasnCourse);
+		dasnHdop = Double.valueOf(utl.unsignedFloat4Bytes(packet[60], packet[61], packet[62],
+				packet[63]));
+		logger.debug("HDOP : " + dasnHdop);
+		dasnSatUsed = (long) (0x000000FF & packet[64]);
+		logger.debug("Satelites : " + dasnSatUsed);
 		navCRC = packet[65];
 		logger.debug("CRC : " + navCRC);
 		// Подсчитаем реальную контрольную сумму.

@@ -1,46 +1,25 @@
 package ru.novoscan.trkpd.terminals;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.sql.SQLException;
-import java.util.Date;
-import java.util.HashMap;
 
 import javax.management.RuntimeErrorException;
 
 import org.apache.log4j.Logger;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModTeltonikaFm implements ModConstats {
+public class ModTeltonikaFm extends Terminal {
 	static Logger logger = Logger.getLogger(ModTeltonikaFm.class);
 
 	// private int navPacketSize;
 
 	private int navPacketType;
-
-	private int navDeviceStatus;
-
-	private float navLatitude;
-
-	private float navLongitude;
-
-	// private float navHeight;
-
-	private float navSpeed;
-
-	private float navCource;
-
-	// private float navHdop;
-
-	private int navSatellitesCount;
-
-	private float navTemp;
 
 	private final static int TYPE_DATA_NOT_ACK = 0x00;
 
@@ -48,20 +27,16 @@ public class ModTeltonikaFm implements ModConstats {
 
 	private final static int TYPE_ACK = 0x02;
 
-	private final static int ADC_KEY = 66;
+	private final static String ADC_KEY = "66";
 
 	private byte[] packetData;
-
-	private HashMap<String, String> map = new HashMap<String, String>();
 
 	private int fullreadbytes;
 
 	private int maxPacketSize;
 
 	private TrackPgUtils pgcon;
-
-	private ModConfig conf;
-
+	
 	private byte[] askPacket = new byte[7];
 
 	private DatagramSocket clientSocket;
@@ -70,13 +45,9 @@ public class ModTeltonikaFm implements ModConstats {
 
 	private int navPacketId;
 
-	private String navIMEI;
-
 	private int avlCodecId;
 
 	private String navPriority;
-
-	private int navHgeo;
 
 	// private String navData;
 
@@ -88,21 +59,9 @@ public class ModTeltonikaFm implements ModConstats {
 
 	private int navAvlId;
 
-	private Date navDateTime = new Date();
-
-	public Date getNavDateTime() {
-		return navDateTime;
-	}
-
-	public void setNavDateTime(Date navDateTime) {
-		this.navDateTime = navDateTime;
-	}
-
-	private HashMap<Integer, BigInteger> values = new HashMap<>();
-
 	public ModTeltonikaFm(DatagramPacket dataPacket,
-			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon) throws IOException {
-		this.conf = conf;
+			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon)
+			throws IOException {
 		this.pgcon = pgcon;
 		this.dataPacket = dataPacket;
 		this.clientSocket = clientSocket;
@@ -137,7 +96,7 @@ public class ModTeltonikaFm implements ModConstats {
 			logger.debug("Пакет ACK.");
 		}
 		if (navPacketType == TYPE_DATA_ACK) {
-			sendAck();
+			sendAck();			
 		}
 
 		fullreadbytes = packetLength;
@@ -149,7 +108,6 @@ public class ModTeltonikaFm implements ModConstats {
 		logger.debug("AVL packet id : " + navAvlId);
 		int of = (readByte() << 8) + readByte();
 		logger.debug("0x000F : " + of);
-		values.clear();
 		parseIMEI();
 		parseCodecID();
 		logger.debug("CodecId : " + avlCodecId);
@@ -158,47 +116,36 @@ public class ModTeltonikaFm implements ModConstats {
 			logger.debug("NumberOfData : " + avlDataCount);
 			for (int i = 0; i < avlDataCount; i++) {
 				logger.debug("Обработка пакета : " + i);
-				values.clear();
-				map.clear();
 				getGnss();
 				getIO();
-				if (navDeviceStatus == 1) {
-					map.put("vehicleId", navIMEI);
-					map.put("dasnUid", navIMEI);
-					map.put("dasnLatitude", String.valueOf(navLatitude));
-					map.put("dasnLongitude", String.valueOf(navLongitude));
-					map.put("dasnStatus", String.valueOf(navDeviceStatus));
-					map.put("dasnSatUsed", String.valueOf(navSatellitesCount));
-					map.put("dasnZoneAlarm", null);
-					map.put("dasnMacroId", null);
-					map.put("dasnMacroSrc", null);
-					map.put("dasnSog", String.valueOf(navSpeed));
-					map.put("dasnCource", String.valueOf(navCource));
-					map.put("dasnHdop", null);
-					map.put("dasnHgeo", String.valueOf(navHgeo));// Высота
-					map.put("dasnHmet", null);
-					// map.put("dasnGpio", String.valueOf(navGpio));
-					// map.put("dasnAdc", String.valueOf(navAdc));
-					map.put("dasnGpio", null);
-					if (values.containsKey(ADC_KEY)) {
-						map.put("dasnAdc", values.get(ADC_KEY).toString());
-					} else {
-						map.put("dasnAdc", null);
+				if (dasnStatus == DATA_STATUS.OK) {
+					dataSensor.setDasnDatetime(dasnDatetime);
+					dataSensor.setDasnUid(dasnUid);
+					dataSensor.setDasnLatitude(dasnLatitude);
+					dataSensor.setDasnLongitude(dasnLongitude);
+					dataSensor.setDasnStatus(1L);
+					dataSensor.setDasnSatUsed(dasnSatUsed);
+					dataSensor.setDasnSog(dasnSog);
+					dataSensor.setDasnCourse(dasnCourse);
+
+					dataSensor.setDasnHgeo(dasnHgeo);// Высота
+
+					if (dasnValues.containsKey(ADC_KEY)) {
+						dataSensor.setDasnAdc(Long.valueOf(dasnValues.get(ADC_KEY)));
 					}
-					map.put("dasnTemp", String.valueOf(navTemp));
-					map.put("i_spmt_id", Integer.toString(conf.getModType()));
+					dataSensor.setDasnTemp(dasnTemp);
+					dataSensor.setDasnValues(dasnValues);
 					// запись в БД
-					pgcon.setDataSensorValues(map, getNavDateTime(), values);
+					pgcon.setDataSensorValues(dataSensor);
 					// Ответ блоку
 					try {
 						pgcon.addDataSensor();
-						logger.debug("Writing Database : " + navIMEI);
+						logger.debug("Writing Database : " + dasnUid);
 					} catch (SQLException e) {
 						logger.warn("Error Writing Database : "
 								+ e.getMessage());
 					}
-					map.clear();
-
+					this.clear();
 				}
 			}
 		} else {
@@ -218,7 +165,7 @@ public class ModTeltonikaFm implements ModConstats {
 			for (int m = 0; m < infoCount; m++) {
 				int id = readId();
 				int value = readValue(byteLength);
-				values.put(id, BigInteger.valueOf(value));
+				dasnValues.put(String.valueOf(id), String.valueOf(value));
 			}
 			byteLength = 2 * byteLength;
 		}
@@ -243,11 +190,11 @@ public class ModTeltonikaFm implements ModConstats {
 	}
 
 	private void parseIMEI() {
-		navIMEI = "";
+		dasnUid = "";
 		for (int i = 0; i < 15; i++) {
-			navIMEI = navIMEI + (char) readByte();
+			dasnUid = dasnUid + (char) readByte();
 		}
-		logger.debug("IMEI : " + navIMEI);
+		logger.debug("IMEI : " + dasnUid);
 		if (!checkIMEI()) {
 			logger.warn("IMEI incorrect");
 		}
@@ -258,19 +205,19 @@ public class ModTeltonikaFm implements ModConstats {
 		parseDateTime();
 		navPriority = String.valueOf(readByte()); // приоритет
 		logger.debug("Приоритет : " + navPriority);
-		navLongitude = ModUtils.getDegreeFromInt(getIntU32());
-		logger.debug("Долгота : " + navLongitude);
-		navLatitude = ModUtils.getDegreeFromInt(getIntU32());
-		logger.debug("Широта : " + navLatitude);
-		navHgeo = getIntU16();
-		logger.debug("Высота : " + navHgeo);
-		navCource = getIntU16();
-		logger.debug("Курс : " + navCource);
-		navSatellitesCount = readByte();
-		logger.debug("Спутники : " + navSatellitesCount);
-		navSpeed = getIntU16();
-		logger.debug("Скорость : " + navSpeed);
-		navDeviceStatus = 1;
+		dasnLongitude = Double.valueOf(ModUtils.getDegreeFromInt(getIntU32()));
+		logger.debug("Долгота : " + dasnLongitude);
+		dasnLatitude = Double.valueOf(ModUtils.getDegreeFromInt(getIntU32()));
+		logger.debug("Широта : " + dasnLatitude);
+		dasnHgeo = (double) getIntU16();
+		logger.debug("Высота : " + dasnHgeo);
+		dasnCourse = (double) getIntU16();
+		logger.debug("Курс : " + dasnCourse);
+		dasnSatUsed = (long) readByte();
+		logger.debug("Спутники : " + dasnSatUsed);
+		dasnSog = (double) getIntU16();
+		logger.debug("Скорость : " + dasnSog);
+		dasnStatus = DATA_STATUS.OK;
 	}
 
 	private void sendAck() throws IOException {
@@ -293,23 +240,9 @@ public class ModTeltonikaFm implements ModConstats {
 			timestamp = timestamp + readByte() * Math.pow(2, ((7 - i) * 8));
 		}
 		timestamp = timestamp - TZ_OFFSET;
-		navDateTime.setTime((long) timestamp);
+		dasnDatetime.setTime((long) timestamp);
 	}
 
-	/**
-	 * @return the conf
-	 */
-	public ModConfig getConf() {
-		return conf;
-	}
-
-	/**
-	 * @param conf
-	 *            the conf to set
-	 */
-	public void setConf(ModConfig conf) {
-		this.conf = conf;
-	}
 
 	/**
 	 * @return the pgcon

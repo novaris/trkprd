@@ -9,25 +9,22 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModNavixyM7 implements ModConstats {
+public class ModNavixyM7 extends Terminal {
 	static Logger logger = Logger.getLogger(ModNavixyM7.class);
-
-	private static String navDeviceID;
 
 	private final DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
 
-	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+	private final SimpleDateFormat DSF = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
 
 	// 310000001,20100701180220,121.123456,12.654321,0,233,0,9,2,4.10,1
 	// ид,дата YYYYMMDDHHMMSS
@@ -63,8 +60,6 @@ public class ModNavixyM7 implements ModConstats {
 
 	private static int maxPacketSize = 200;
 
-	private HashMap<String, String> map = new HashMap<String, String>();
-
 	private static int keepAliveLength = 8;
 
 	int[] keepAlive = new int[keepAliveLength];
@@ -75,39 +70,14 @@ public class ModNavixyM7 implements ModConstats {
 
 	private DataInputStream iDs;
 
-	private String navDateTime;
-
-	private String navLatitude;
-
-	private String navLongitude;
-
-	private String navSpeed;
-
-	private String navCource;
-
-	private String navSatellitesCount;
-
-	private float navPower;
-
-	private String navDeviceStatus;
-
-	private String navGsm;
-
-	private String navHdop;
-
-	private static long deviceId;
-
 	private static int aliveId;
 
-	private static ModConfig conf;
-
-	private static TrackPgUtils pgcon;
+	private TrackPgUtils pgcon;
 
 	public ModNavixyM7(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
-		ModNavixyM7.conf = conf;
-		ModNavixyM7.pgcon = pgcon;
+		this.pgcon = pgcon;
 		dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
 		maxPacketSize = conf.getMaxSize();
 		this.oDs = oDs;
@@ -127,10 +97,9 @@ public class ModNavixyM7 implements ModConstats {
 					aliveId = (keepAlive[2] & 0xff)
 							+ ((keepAlive[3] & 0xff) << 8);
 					logger.debug("Alive Id : " + aliveId);
-					deviceId = (keepAlive[7] & 0xff); // long тип
-					deviceId = keepAlive[4] + ((keepAlive[5] & 0xff) << 8)
-							+ ((keepAlive[6] & 0xff) << 16) + (deviceId << 24);
-					logger.debug("Device Id : " + deviceId);
+					dasnUid = String.valueOf(keepAlive[4] + ((keepAlive[5] & 0xff) << 8)
+							+ ((keepAlive[6] & 0xff) << 16) + (((long) (keepAlive[7] & 0xff)) << 24));
+					logger.debug("Device Id : " + dasnUid);
 					sendKeepAlive();
 					readbytes = 0;
 					i = 0; // очистим массив
@@ -170,17 +139,17 @@ public class ModNavixyM7 implements ModConstats {
 				logger.error("Дата неверна: " + date);
 				date = dateFormat.format(curr);
 			}
-			navDeviceID = m.group(1);
-			navDateTime = date + m.group(3);
-			navLongitude = m.group(4);
-			navLatitude = m.group(5);
-			navSpeed = m.group(6);
-			navCource = m.group(7);
-			navHdop = m.group(8);
-			navSatellitesCount = m.group(9);
-			navPower = Float.valueOf(m.group(11));
-			navDeviceStatus = m.group(12);
-			navGsm = m.group(13);
+			dasnUid = m.group(1);
+			dasnDatetime = DSF.parse(date + m.group(3));
+			dasnLongitude = Double.valueOf(m.group(4));
+			dasnLatitude = Double.valueOf(m.group(5));
+			dasnSog = Double.valueOf(m.group(6));
+			dasnCourse = Double.valueOf(m.group(7));
+			dasnHdop = Double.valueOf(m.group(8));
+			dasnSatUsed = Long.parseLong(m.group(9));
+			dasnAdc = Long.parseLong(m.group(11));
+			dasnValues.put("STAT", m.group(12));
+			dasnValues.put("GSM", m.group(13));
 			writeData();
 		} else {
 			logger.warn("Данные терминала неверны : " + data);
@@ -219,36 +188,25 @@ public class ModNavixyM7 implements ModConstats {
 
 	private void writeData() throws ParseException {
 		// Сохраним в БД данные
-		map.put("vehicleId", String.valueOf(navDeviceID));
-		map.put("dasnUid", String.valueOf(navDeviceID));
-		map.put("dasnLatitude", String.valueOf(navLatitude));
-		map.put("dasnLongitude", String.valueOf(navLongitude));
-		map.put("dasnStatus", navDeviceStatus);
-		map.put("dasnSatUsed", navSatellitesCount);
-		map.put("dasnZoneAlarm", null);
-		map.put("dasnMacroId", null);
-		map.put("dasnMacroSrc", null);
-		map.put("dasnSog", String.valueOf(navSpeed));
-		map.put("dasnCource", navCource);
-		map.put("dasnHdop", navHdop);
-		map.put("dasnHgeo", null);
-		map.put("dasnHmet", null);
-		map.put("dasnGpio", null);
-		map.put("dasnAdc", String.valueOf((int) Math.round(navPower)));
-		map.put("i_spmt_id", Integer.toString(ModNavixyM7.conf.getModType())); // запись
-																				// в
-		// БД
-		map.put("dasnXML", "<xml><pw>" + navPower + "</pw><gsm>" + navGsm
-				+ "</gsm></xml>");
-		pgcon.setDataSensor(map, sdf.parse(navDateTime));
+		dataSensor.setDasnUid(dasnUid);
+		dataSensor.setDasnDatetime(dasnDatetime);
+		dataSensor.setDasnLatitude(dasnLatitude);
+		dataSensor.setDasnLongitude(dasnLongitude);
+		dataSensor.setDasnSog(dasnSog);
+		dataSensor.setDasnCourse(dasnCourse);
+		dataSensor.setDasnSatUsed(dasnSatUsed);
+		dataSensor.setDasnHdop(dasnHdop);
+		dataSensor.setDasnValues(dasnValues);
+		dataSensor.setDasnAdc(dasnAdc);
+		
+		pgcon.setDataSensorValues(dataSensor);
 		try {
 			pgcon.addDataSensor();
 			logger.debug("Write Database OK");
 		} catch (SQLException e) {
 			logger.warn("Error Writing Database : " + e.getMessage());
 		}
-		map.clear();
-
+		this.clear();
 	}
 
 }

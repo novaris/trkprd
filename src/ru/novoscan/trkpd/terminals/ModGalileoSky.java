@@ -6,69 +6,24 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.SQLException;
 import java.util.Date;
-import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
-import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
 /**
  * @author kur
  * 
  */
-public class ModGalileoSky implements ModConstats {
-	private static int[] navDeviceID = new int[4];
-
-	// private int navPacketSize;
-
-	// private int navPacketType;
-
-	// private int navSoftVersion;
-
-	// private int navNavOnOff;
-
-	private int navDeviceStatus;
-
-	private Date navDateTime;
-
-	private float navLatitude;
-
-	private float navLongitude;
-
-	// private float navHeight;
-
-	private float navSpeed;
-
-	private float navCource;
-
-	// private float navHdop;
-
-	private int navSatellitesCount;
-
-	private String navSatellitesType = "UNDEF";
-
-	// private int navCRC;
-
-	// private int navCheckCRC;
-
-	private float navPower;
-
-	private float navTemp;
-
-	private long navGPIO;
-
-	private long navADC;
+public class ModGalileoSky extends Terminal {
 
 	static Logger logger = Logger.getLogger(ModGalileoSky.class);
 
 	private int readbytes;
 
 	private float fullreadbytes = 0;
-
-	private HashMap<String, String> map = new HashMap<String, String>();
 
 	private static int[] packet;
 
@@ -97,27 +52,17 @@ public class ModGalileoSky implements ModConstats {
 
 	private DataInputStream iDsLocal;
 
-	private float navPowerReserv;
-
-	private String navDateTimeFixed;
-
 	private int navVersion;
 
 	private int navVersionRaw;
-
-	private int navUID;
-
-	private static ModConfig conf;
 
 	private static TrackPgUtils pgcon;
 
 	public ModGalileoSky(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws IOException {
-		// int cread;
-		ModGalileoSky.conf = conf;
-		ModGalileoSky.pgcon = pgcon;
 
+		ModGalileoSky.pgcon = pgcon;
 		iDsLocal = iDs;
 		logger.debug("Read streems..");
 		fullreadbytes = 0;
@@ -209,9 +154,9 @@ public class ModGalileoSky implements ModConstats {
 		} else if (packet[id] == 0x04) {
 			tagLength = 2;
 			id = id + 1;
-			navUID = packet[id] + (packet[id + 1] << 8);
+			dasnUid = String.valueOf(packet[id] + (packet[id + 1] << 8));
 			id = id + tagLength;
-			logger.debug("Идентификатор : " + navUID);
+			logger.debug("Идентификатор : " + dasnUid);
 		} else if (packet[id] == 0x10) {
 			tagLength = 2;
 			id = id + 1;
@@ -348,38 +293,31 @@ public class ModGalileoSky implements ModConstats {
 
 	private void writeData() {
 		// Сохраним в БД данные
-		map.put("vehicleId", String.valueOf(ModUtils.getIntByte(navDeviceID)));
-		map.put("dasnUid", String.valueOf(ModUtils.getIntByte(navDeviceID)));
-		map.put("dasnLatitude", String.valueOf(navLatitude));
-		map.put("dasnLongitude", String.valueOf(navLongitude));
-		map.put("dasnStatus", Integer.toString(navDeviceStatus));
-		map.put("dasnSatUsed", Integer.toString(navSatellitesCount));
-		map.put("dasnZoneAlarm", null);
-		map.put("dasnMacroId", null);
-		map.put("dasnMacroSrc", null);
-		map.put("dasnSog", String.valueOf(navSpeed));
-		map.put("dasnCource", String.valueOf(navCource));
-		map.put("dasnHdop", null);
-		map.put("dasnHgeo", null);
-		map.put("dasnHmet", null);
-		map.put("dasnGpio", String.valueOf(navGPIO));
-		map.put("dasnAdc", String.valueOf(navADC));
-		map.put("dasnTemp", String.valueOf((int) navTemp));
-		map.put("i_spmt_id", Integer.toString(ModGalileoSky.conf.getModType())); // запись
-																					// в
-		// БД
-		map.put("dasnXML", "<xml><gl>" + navSatellitesType + "</gl><pw1>"
-				+ navPower + "</pw1><dt>" + navDateTimeFixed + "</dt><pw>"
-				+ navPowerReserv + "</pw></xml>");
-		pgcon.setDataSensor(map, navDateTime);
+		dataSensor.setDasnUid(dasnUid);
+		dataSensor.setDasnDatetime(dasnDatetime);
+		dataSensor.setDasnLatitude(dasnLatitude);
+		dataSensor.setDasnLongitude(dasnLongitude);
+		dataSensor.setDasnSatUsed(dasnSatUsed);
+		dataSensor.setDasnSog(dasnSog);
+		dataSensor.setDasnCourse(dasnCourse);
+		dataSensor.setDasnHgeo(dasnHgeo);
+		dataSensor.setDasnHmet(dasnHmet);
+		dataSensor.setDasnAdc(dasnAdc);
+		dataSensor.setDasnGpio(dasnGpio);
+		dataSensor.setDasnTemp(dasnTemp);
+		//
+		dataSensor.setDasnMacroId(dasnMacroId);
+		dataSensor.setDasnMacroSrc(dasnMacroSrc);
+		//
+		pgcon.setDataSensorValues(dataSensor);
+		// Ответ блоку
 		try {
 			pgcon.addDataSensor();
-			logger.debug("Write Database OK");
+			logger.debug("Writing Database : " + dasnUid);
 		} catch (SQLException e) {
 			logger.warn("Error Writing Database : " + e.getMessage());
 		}
-		map.clear();
-
+		this.clear();
 	}
 
 }

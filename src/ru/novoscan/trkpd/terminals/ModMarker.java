@@ -10,13 +10,12 @@ import java.io.InputStreamReader;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
@@ -25,7 +24,7 @@ import ru.novoscan.trkpd.utils.TrackPgUtils;
  * @author kurensky
  * 
  */
-public class ModMarker implements ModConstats {
+public class ModMarker extends Terminal {
 	static Logger logger = Logger.getLogger(ModMarker.class);
 
 	// $GM20B869158005299603T111112144458N55021806E08258139800002956630308#
@@ -55,9 +54,7 @@ public class ModMarker implements ModConstats {
 
 	private static int maxPacketSize;
 
-	private HashMap<String, String> map = new HashMap<String, String>();
-
-	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+	private SimpleDateFormat DSF = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
 
 	public ModMarker(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
@@ -72,7 +69,7 @@ public class ModMarker implements ModConstats {
 			readbytes = readbytes + 1;
 			if (packetSize > maxPacketSize) {
 				logger.error("Over size : " + packetSize);
-				map.clear();
+				this.clear();
 				return;
 			} else if (cread == 0x0d) {
 				System.out.println("Parse packet..." + slog);
@@ -86,45 +83,41 @@ public class ModMarker implements ModConstats {
 					 * dasnHdop; float dasnHgeo; float dasnHmet; int dasnGpio;
 					 * int dasnAdc; float dasnTemp; int8 i_spmt_id;
 					 */
-					float dasnLatitude = ModUtils.getGGMM(m.group(6));
+					dasnLatitude = Double.valueOf(ModUtils.getGGMM(m.group(6)));
 					if (m.group(5).equals("S")) {
 						dasnLatitude = -dasnLatitude;
 					}
-					float dasnLongitude = ModUtils.getGGMM(m.group(8));
+					dasnLongitude = Double
+							.valueOf(ModUtils.getGGMM(m.group(8)));
 					if (m.group(7).equals("W")) {
 						dasnLongitude = -dasnLongitude;
 					}
-					int dasnSatUsed = Integer.parseInt("0" + m.group(11), 16);
-					int dasnStatus = 0;
+					dasnSatUsed = Long.parseLong("0" + m.group(11), 16);
+					dasnStatus = DATA_STATUS.ERR;
 					if (dasnSatUsed > 3) {
-						dasnStatus = 1;
+						dasnStatus = DATA_STATUS.OK;
 					}
-					int dasnTemp = Integer.valueOf(m.group(15));
-					dasnTemp = dasnTemp - 273;
-					map.put("vehicleId", m.group(3));
-					map.put("dasnUid", m.group(3));
-					map.put("dasnLatitude", String.valueOf(dasnLatitude));
-					map.put("dasnLongitude", String.valueOf(dasnLongitude));
-					map.put("dasnStatus", String.valueOf(dasnStatus));
-					map.put("dasnSatUsed", String.valueOf(dasnSatUsed));
-					map.put("dasnZoneAlarm", null);
-					map.put("dasnMacroId", null);
-					map.put("dasnMacroSrc", null);
-					map.put("dasnSog", m.group(9));
-					map.put("dasnCource", m.group(10));
-					map.put("dasnHdop", null);
-					map.put("dasnHgeo", null);
-					map.put("dasnHmet", null);
-					map.put("dasnGpio", m.group(13));
-					map.put("dasnAdc", m.group(12));
-					map.put("dasnTemp", String.valueOf(dasnTemp));
-					map.put("i_spmt_id", Integer.toString(conf.getModType()));
-					map.put("dasnXML", "<xml><out>" + m.group(14)
-							+ "</out><pw>"
-							+ (Float.valueOf(m.group(12)) / ((float) 10.0))
-							+ "</pw><temp>" + dasnTemp + "</temp></xml>");
+					dasnTemp = Double.parseDouble(m.group(15)) - 273;
+					dasnUid = m.group(3);
+					dasnSog = Double.valueOf(m.group(9));
+					dasnCourse = Double.valueOf(m.group(10));
+					dasnGpio = Long.valueOf(m.group(13));
+					dasnAdc = Long.valueOf(m.group(12)) / 10;
+					dasnDatetime = DSF.parse(m.group(4));
+
+					dasnValues.put("OUT", m.group(14));
+					dataSensor.setDasnUid(dasnUid);
+					dataSensor.setDasnDatetime(dasnDatetime);
+					dataSensor.setDasnLatitude(dasnLatitude);
+					dataSensor.setDasnLongitude(dasnLongitude);
+					dataSensor.setDasnSatUsed(dasnSatUsed);
+					dataSensor.setDasnSog(dasnSog);
+					dataSensor.setDasnCourse(dasnCourse);
+					dataSensor.setDasnTemp(dasnTemp);
+					dataSensor.setDasnAdc(dasnAdc);
+					dataSensor.setDasnValues(dasnValues);
 					// запись в БД
-					pgcon.setDataSensor(map, sdf.parse(m.group(4)));
+					pgcon.setDataSensorValues(dataSensor);
 					// Ответ блоку
 					try {
 						pgcon.addDataSensor();
@@ -133,7 +126,7 @@ public class ModMarker implements ModConstats {
 						logger.warn("Error Writing Database : "
 								+ e.getMessage());
 					}
-					map.clear();
+					this.clear();
 					logger.debug("Send reply : " + "__" + m.group(2)
 							+ (char) (0x0d) + (char) (0x0a));
 					oDs.writeBytes("__" + m.group(2) + (char) (0x0d)
@@ -143,7 +136,7 @@ public class ModMarker implements ModConstats {
 					packetSize = 0;
 				} else {
 					logger.error("Unknown packet type : " + slog);
-					map.clear();
+					this.clear();
 					slog = "";
 					packetSize = 0;
 				}

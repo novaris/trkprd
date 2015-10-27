@@ -11,6 +11,7 @@ import org.apache.log4j.Logger;
 import ru.novoscan.trkpd.resources.ModConstats;
 import ru.novoscan.trkpd.terminals.ModTeltonikaFm;
 import ru.novoscan.trkpd.terminals.ModTranskomT15;
+import ru.novoscan.trkpd.terminals.ModWialon;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
@@ -78,6 +79,10 @@ public class TrackServerUdp implements TrackServer {
 					readBytes = mod.getReadBytes();
 				} else if (modType == TERM_TYPE_TELTONIKA_FM) {
 					ModTeltonikaFm mod = new ModTeltonikaFm(dataPacket,
+							listenSocket, config, pgConnect);
+					readBytes = mod.getReadBytes();
+				} else if (modType == TERM_TYPE_WIALON) {
+					ModWialon mod = new ModWialon(dataPacket,
 							listenSocket, config, pgConnect);
 					readBytes = mod.getReadBytes();
 				} else {

@@ -6,9 +6,12 @@ package ru.novoscan.trkpd;
 import java.io.IOException;
 import java.sql.SQLException;
 
+import javax.management.RuntimeErrorException;
+
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.resources.ModConstats.SERVER;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
@@ -49,12 +52,19 @@ public class Track {
 				sb.append("Подключение к базе данных Postgresql : ")
 						.append(config.getPgUrl());
 				TrackPgUtils pgconn = new TrackPgUtils(config);
-				sb.append("Подключение выполнено.");
+				sb.append("\r\nПодключение выполнено.");
+				logger.info(sb);
 				TrackServer trackServer;
-				if(config.getServerType().equalsIgnoreCase("UDP")) {
+				sb.setLength(0);
+				sb.append("Протокол сервера : ").append(config.getServerType());
+				logger.info(sb);
+				if (config.getServerType().equalsIgnoreCase(SERVER.UDP.toString())) {
 					trackServer = new TrackServerUdp(config,pgconn);
+				} else if (config.getServerType().equalsIgnoreCase(SERVER.TCP.toString())) {
+					trackServer = new TrackServerTcp(config,pgconn);
 				} else {
-					trackServer = new TrackServerTcp(config,pgconn);					
+					throw new RuntimeErrorException(new Error("Error Server Type"),
+							"Неверный протокол : "+config.getServerType());
 				}
 				trackServer.run();
 		}

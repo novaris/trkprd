@@ -27,6 +27,7 @@ import ru.novoscan.trkpd.terminals.ModScoutOpen;
 import ru.novoscan.trkpd.terminals.ModSignal;
 import ru.novoscan.trkpd.terminals.ModSt270;
 import ru.novoscan.trkpd.terminals.ModUtp5;
+import ru.novoscan.trkpd.terminals.ModWialon;
 import ru.novoscan.trkpd.terminals.ModXml;
 import ru.novoscan.trkpd.terminals.ModMajak;
 import ru.novoscan.trkpd.terminals.ModMarker;
@@ -188,6 +189,11 @@ public class TrackServerTcp implements TrackServer {
 					readBytes = mod.getReadBytes();
 				} else if (modType == TERM_TYPE_EGTS) {
 					ModEgts mod = new ModEgts(dataInputStream,
+							dataOutputStream, inputStreamReader, config,
+							pgConnect);
+					readBytes = mod.getReadBytes();
+				} else if (modType == TERM_TYPE_WIALON) {
+					ModWialon mod = new ModWialon(dataInputStream,
 							dataOutputStream, inputStreamReader, config,
 							pgConnect);
 					readBytes = mod.getReadBytes();

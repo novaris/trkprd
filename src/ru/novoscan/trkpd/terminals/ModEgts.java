@@ -4,60 +4,31 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.math.BigInteger;
 import java.sql.SQLException;
-import java.util.Date;
-import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.resources.EgtsFrameData;
 import ru.novoscan.trkpd.resources.EgtsResponse;
 import ru.novoscan.trkpd.resources.EgtsTransport;
-import ru.novoscan.trkpd.resources.ModConstats;
 import ru.novoscan.trkpd.resources.ServiceDataRecord;
 import ru.novoscan.trkpd.resources.ServiceSubRecordData;
 import ru.novoscan.trkpd.resources.SubRecord;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModEgts implements ModConstats {
+public class ModEgts extends Terminal {
 
 	private static Logger logger = Logger.getLogger(ModEgts.class);
 
 	private float fullreadbytes;
 
-	private HashMap<String, String> map = new HashMap<String, String>();
-
-	private final static int readOK = 0x55;
-
-	private int navSatellitesCount;
-
-	private String navDeviceID;
-
-	private float navLatitude;
-
-	private float navLongitude;
-
-	private float navSpeed;
-
-	private int navCource;
-
-	private int navGPIO;
-
-	private int navAdc0;
-
-	private int navAdc1;
-
-	private int navDeviceStatus;
-
-	private final ModConfig conf;
+	private final static int READ_OK = 0x55;
 
 	private final TrackPgUtils pgcon;
 
 	private final DataOutputStream oDs;
-
-	private HashMap<Integer, BigInteger> values = new HashMap<>();
 
 	private StringBuffer message = new StringBuffer();
 
@@ -89,8 +60,6 @@ public class ModEgts implements ModConstats {
 
 	private EgtsResponse egtsResponse;
 
-	private Date navDateTime;
-
 	public int getResponseRecorNumber() {
 		return responseRecordNumber;
 	}
@@ -108,8 +77,8 @@ public class ModEgts implements ModConstats {
 	}
 
 	public ModEgts(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) throws IOException {
-		this.conf = conf;
+			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
+			throws IOException {
 		this.pgcon = pgcon;
 		this.oDs = oDs;
 		logger.debug("Read streems..");
@@ -143,7 +112,7 @@ public class ModEgts implements ModConstats {
 						debug();
 						message = subRecord.getSubRecordTermIdentity().dump();
 						debug();
-						navDeviceID = subRecord.getSubRecordTermIdentity()
+						dasnUid = subRecord.getSubRecordTermIdentity()
 								.getTerminalId();
 						// запись
 						if (subRecordResponse == null) {
@@ -200,35 +169,40 @@ public class ModEgts implements ModConstats {
 	@SuppressWarnings("unused")
 	private void writeData() throws IOException {
 		// Сохраним в БД данные
-		map.put("vehicleId", String.valueOf(navDeviceID));
-		map.put("dasnUid", String.valueOf(navDeviceID));
-		map.put("dasnLatitude", String.valueOf(navLatitude));
-		map.put("dasnLongitude", String.valueOf(navLongitude));
-		map.put("dasnStatus", Integer.toString(navDeviceStatus));
-		map.put("dasnSatUsed", Integer.toString(navSatellitesCount));
-		map.put("dasnZoneAlarm", null);
-		map.put("dasnMacroId", null);
-		map.put("dasnMacroSrc", null);
-		map.put("dasnSog", String.valueOf(navSpeed));
-		map.put("dasnCource", String.valueOf(navCource));
-		map.put("dasnHdop", null);
-		map.put("dasnHgeo", null);
-		map.put("dasnHmet", null);
-		map.put("dasnGpio", String.valueOf(navGPIO));
-		map.put("dasnAdc", String.valueOf(navAdc0));
-		map.put("dasnTemp", String.valueOf((int) navAdc1));
-		map.put("i_spmt_id", Integer.toString(this.conf.getModType())); // запись
-																		// в
-		pgcon.setDataSensorValues(map, navDateTime, values);
-		try {
-			pgcon.addDataSensor();
-			logger.debug("Write Database OK");
+		dataSensor.setDasnUid(dasnUid);
+		;
+		dataSensor.setDasnDatetime(dasnDatetime);
+		dataSensor.setDasnLatitude(dasnLatitude);
+		;
+		dataSensor.setDasnLongitude(dasnLongitude);
+		;
+		dataSensor.setDasnSatUsed(dasnSatUsed);
+		dataSensor.setDasnSog(dasnSog);
+		dataSensor.setDasnCourse(dasnCourse);
+		dataSensor.setDasnHgeo(dasnHgeo);
+		dataSensor.setDasnHmet(dasnHmet);
+		dataSensor.setDasnAdc(dasnAdc);
+		dataSensor.setDasnGpio(dasnGpio);
+		dataSensor.setDasnTemp(dasnTemp);
 
-		} catch (SQLException e) {
-			logger.warn("Error Writing Database : " + e.getMessage());
+		//
+		dataSensor.setDasnMacroId(dasnMacroId);
+		dataSensor.setDasnMacroSrc(dasnMacroSrc);
+
+		if (dasnStatus.equals(DATA_STATUS.OK)) {
+			pgcon.setDataSensorValues(dataSensor);
+			// Ответ блоку
+			try {
+				pgcon.addDataSensor();
+				logger.debug("Writing Database : " + dasnUid);
+			} catch (SQLException e) {
+				logger.warn("Error Writing Database : " + e.getMessage());
+			}
+			oDs.write(READ_OK);
+		} else {
+			logger.debug("Данные не валидные : " + dasnUid);			
 		}
-		map.clear();
-		oDs.write(readOK);
+		this.clear();
 	}
 
 }

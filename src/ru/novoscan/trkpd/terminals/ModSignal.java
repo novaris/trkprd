@@ -7,11 +7,10 @@ import java.io.InputStreamReader;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
@@ -20,38 +19,12 @@ import ru.novoscan.trkpd.utils.TrackPgUtils;
  * @author kur
  * 
  */
-public class ModSignal implements ModConstats {
-	private static int[] navDeviceID = new int[4];
+public class ModSignal extends Terminal {
+	private static int[] navClientId = new int[4];
 
-	private static int[] navServerID = new int[4];
+	private static int[] navServerId = new int[4];
 
-	// private int navPacketSize;
-
-	// private int navPacketType;
-
-	// private int navSoftVersion;
-
-	// private int navNavOnOff;
-
-	private int navDeviceStatus;
-
-	private String navDateTime;
-
-	private float navLatitude;
-
-	private float navLongitude;
-
-	// private float navHeight;
-
-	private float navSpeed;
-
-	private float navCource;
-
-	// private float navHdop;
-
-	private int navSatellitesCount;
-
-	private String navSatellitesType = "UNDEF";
+	private int navSatellitesType = -1;
 
 	// private int navCRC;
 
@@ -61,15 +34,6 @@ public class ModSignal implements ModConstats {
 
 	private int navAcc2;
 
-	private float navPower;
-
-	// private int navStatus;
-
-	private float navTemp;
-
-	private long navGPIO;
-
-	private long navADC;
 
 	static Logger logger = Logger.getLogger(ModSignal.class);
 
@@ -77,16 +41,9 @@ public class ModSignal implements ModConstats {
 
 	private float fullreadbytes = 0;
 
-	// private static int maxPacketSize = 18; // длина пакета авторизации
-
-	private HashMap<String, String> map = new HashMap<String, String>();
-
 	private static int[] packet;
 
 	private static int packetDataLength = 32768; // максимальная длина пакета с
-													// данными
-
-	private String navIMEI = "";
 
 	// private String navPhone;
 
@@ -99,8 +56,6 @@ public class ModSignal implements ModConstats {
 	private int packetSize;
 
 	private int factCRCHeader;
-
-	String signature = "";
 
 	// private final int HEADER_LENGTH = 7; // Длина заголовка
 
@@ -164,19 +119,15 @@ public class ModSignal implements ModConstats {
 
 	private String navDateTimeFixed;
 
-	private final ModConfig conf;
-
 	private final TrackPgUtils pgcon;
 
-	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+	private SimpleDateFormat DSF = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
+
 
 	public ModSignal(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
-		// int cread;
-		this.conf = conf;
 		this.pgcon = pgcon;
-
 		iDsLocal = iDs;
 		logger.debug("Read streems..");
 		packetHeader = new int[PACKET_HANDSHAKE_LENGTH]; // пакет с нулевого
@@ -201,7 +152,7 @@ public class ModSignal implements ModConstats {
 				if (cmdSignature.equals(SIGNATURE_S)) {
 					// Пакет первичной инициализации
 					parseIMEI();
-					if (navIMEI.length() == 0) {
+					if (dasnUid.length() == 0) {
 						// Ошибка не определён IMEI
 						logger.error("Не определён IMEI");
 						throw new RuntimeException(
@@ -252,7 +203,7 @@ public class ModSignal implements ModConstats {
 
 	}
 
-	private void parseDataTypeT() throws IOException {
+	private void parseDataTypeT() throws IOException, ParseException {
 		logger.debug("Он-лайн пакет.");
 		setFormatType();
 		switch (getFormatType()) {
@@ -365,7 +316,7 @@ public class ModSignal implements ModConstats {
 		dataIndex = ModUtils.getIntU32(dataIndexBytes);
 	}
 
-	private void parsePacketF5() {
+	private void parsePacketF5() throws ParseException {
 		logger.debug("Парсим F5");
 		// navPacketSize = PACKET_LENGTH_F5;
 		// navPacketType = PACKET_F5;
@@ -388,15 +339,15 @@ public class ModSignal implements ModConstats {
 		k = 14; // Состояние функциональных модулей
 		k = 15; // Уровень GSM
 		k = 16; // Спутники 2-7 бит
-		navSatellitesCount = packet[packetDataSeek + k] >> 2 & 0xff; // 38
+		dasnSatUsed = (long) (packet[packetDataSeek + k] >> 2 & 0xff); // 38
 		k = 17; // Датчики цифровых входов 0 бит зажигание
 
 		k = 18; // Наряжение на основном питании
-		navPower = (float) (ModUtils.getIntU16(packet, packetDataSeek + k) / 1000.0); // Питание
+		dasnAdc = (long) (ModUtils.getIntU16(packet, packetDataSeek + k) / 1000.0); // Питание
 																						// в
 																						// миливольтах
 																						// 21-22
-		logger.debug("Питание в вольтах : " + navPower);
+		logger.debug("Питание в вольтах : " + dasnAdc);
 		k = 20;
 		navPowerReserv = (float) (ModUtils
 				.getIntU16(packet, packetDataSeek + k) / 1000.0); // Питание в
@@ -419,7 +370,7 @@ public class ModSignal implements ModConstats {
 																	// входе 2
 																	// 29-30
 		logger.debug("Значение ACC2 : " + ((float) navAcc2) / 1000.0);
-		navADC = navAcc1 + (navAcc2 << 16);
+		navAcc2 = navAcc1 + (navAcc2 << 16);
 		k = 26;
 		navDigit1 = ModUtils.getIntU32(packet, packetDataSeek + k); // Цифровой
 																	// вход
@@ -440,46 +391,40 @@ public class ModSignal implements ModConstats {
 																	// события)
 																	// вход 1
 																	// 35-38
-		navGPIO = navDigit1 + (navDigit2 << 8);
+		dasnGpio = (long) (navDigit1 + (navDigit2 << 8));
 		// Спутники - 2-7 бит (0-1 байт выхода 0 - ВЫКЛ 1 - ВКЛ)
 		// Состояние навигации
 		k = 34;
-		int navType = packet[packetDataSeek + k] >> 2 & 0xff; // 38
-		if (navType == 1) {
-			navSatellitesType = "GPS";
-		} else if (navType == 2) {
-			navSatellitesType = "GLONASS";
-		} else if (navType == 3) {
-			navSatellitesType = "GLONASS/GPS";
-		}
+		navSatellitesType = packet[packetDataSeek + k] >> 2 & 0xff; // 38
 		logger.debug("Тип определения местоположения : " + navSatellitesType);
 		// navNavOnOff = packet[packetDataSeek+k] & 0x01;
-		navDeviceStatus = (packet[packetDataSeek + k] >> 1) & 0x01;
-		logger.debug("Валидность координат : " + navDeviceStatus);
-		if (navDeviceStatus == 0) {
-			navSatellitesCount = 0; // координаты невалидны!
+		if (((packet[packetDataSeek + k] >> 1) & 0x01 
+				)== 0) {
+			dasnStatus = DATA_STATUS.ERR; // координаты невалидны!
+		} else {
+			dasnStatus = DATA_STATUS.OK;
 		}
 		k = 35;
-		navDateTime = ModUtils.getDateTimeSignal(packet, packetDataSeek + k); // 35-40
+		dasnDatetime = DSF.parse(ModUtils.getDateTimeSignal(packet, packetDataSeek + k)); // 35-40
 																				// Дата
 																				// данных
-		logger.debug("Время координат : " + navDateTime);
+		logger.debug("Время координат : " + dasnDatetime);
 		k = 41;
-		navLatitude = ModUtils.convRadianToDegree(Float.intBitsToFloat(ModUtils
+		dasnLatitude = (double) ModUtils.convRadianToDegree(Float.intBitsToFloat(ModUtils
 				.getIntU32(packet, packetDataSeek + k)));
-		logger.debug("Широта : " + navLatitude);
+		logger.debug("Широта : " + dasnLatitude);
 		k = 45;
-		navLongitude = ModUtils
+		dasnLongitude = (double) ModUtils
 				.convRadianToDegree(Float.intBitsToFloat(ModUtils.getIntU32(
 						packet, packetDataSeek + k)));
-		logger.debug("Долгота : " + navLongitude);
+		logger.debug("Долгота : " + dasnLongitude);
 		k = 49;
-		navSpeed = Float.intBitsToFloat(ModUtils.getIntU32(packet,
+		dasnSog = Double.valueOf(ModUtils.getIntU32(packet,
 				packetDataSeek + k));
-		logger.debug("Скорость : " + navSpeed);
+		logger.debug("Скорость : " + dasnSog);
 		k = 53;
-		navCource = ModUtils.getIntU16(packet, packetDataSeek + k);
-		logger.debug("Курс : " + navCource);
+		dasnCourse = Double.valueOf(ModUtils.getIntU16(packet, packetDataSeek + k));
+		logger.debug("Курс : " + dasnCourse);
 	}
 
 	private void parsePacketF4() {
@@ -502,7 +447,7 @@ public class ModSignal implements ModConstats {
 
 	}
 
-	private void parsePacketF2() {
+	private void parsePacketF2() throws ParseException {
 		// Обработка формата пакета F2
 		logger.debug("Парсим F2");
 		// navPacketSize = PACKET_LENGTH_F2;
@@ -525,11 +470,11 @@ public class ModSignal implements ModConstats {
 		k = 17; // Состояние выходов 17-18
 		k = 19; // Датчики цифровых входов 19-20
 		k = 21; // Наряжение на основном питании
-		navPower = (float) (ModUtils.getIntU16(packet, packetDataSeek + k) / 1000.0); // Питание
+		dasnAdc = (long) (ModUtils.getIntU16(packet, packetDataSeek + k) / 1000.0); // Питание
 																						// в
 																						// миливольтах
 																						// 21-22
-		logger.debug("Питание в вольтах : " + navPower);
+		logger.debug("Питание в вольтах : " + dasnAdc);
 		k = 23;
 		navPowerReserv = (float) (ModUtils
 				.getIntU16(packet, packetDataSeek + k) / 1000.0); // Питание в
@@ -537,9 +482,9 @@ public class ModSignal implements ModConstats {
 																	// 23-24
 		logger.debug("Резервное питание в вольтах : " + navPowerReserv);
 		k = 25;
-		navTemp = (((packet[packetDataSeek + k]) << 8) + (packet[packetDataSeek
+		dasnTemp = Double.valueOf(((packet[packetDataSeek + k]) << 8) + (packet[packetDataSeek
 				+ k + 1])); // Температура в градусах
-		logger.debug("Температура градусы : " + navTemp);
+		logger.debug("Температура градусы : " + dasnTemp);
 		k = 27;
 		navAcc1 = ModUtils.getIntU16(packet, packetDataSeek + k); // Значение на
 																	// аналоговом
@@ -552,7 +497,7 @@ public class ModSignal implements ModConstats {
 																	// входе 2
 																	// 29-30
 		logger.debug("Значение ACC2 : " + ((float) navAcc2 / 1000.0));
-		navADC = navAcc1 + (navAcc2 << 16);
+		navAcc2 = navAcc1 + (navAcc2 << 16);
 		k = 31;
 		navDigit1 = ModUtils.getIntU32(packet, packetDataSeek + k); // Цифровой
 																	// вход
@@ -573,48 +518,41 @@ public class ModSignal implements ModConstats {
 																	// события)
 																	// вход 1
 																	// 35-38
-		navGPIO = navDigit1 + (navDigit2 << 8); // Спутники - 2-7 бит (0-1 байт
+		dasnGpio = (long) (navDigit1 + (navDigit2 << 8)); // Спутники - 2-7 бит (0-1 байт
 												// выхода 0 - ВЫКЛ 1 - ВКЛ)
 		// Состояние навигации
 		k = 39;
-		navSatellitesCount = packet[packetDataSeek + k] >> 2 & 0xff; // 38
-
-		if (navSatellitesCount == 1) {
-			navSatellitesType = "GPS";
-		} else if (navSatellitesCount == 2) {
-			navSatellitesType = "GLONASS";
-		} else if (navSatellitesCount == 3) {
-			navSatellitesType = "GLONASS/GPS";
-		}
+		navSatellitesType = packet[packetDataSeek + k] >> 2 & 0xff; // 38
 		logger.debug("Тип определения местоположения : " + navSatellitesType);
-		navSatellitesCount = 0;
+		dasnSatUsed = 0L;
 		// navNavOnOff = packet[packetDataSeek+k] & 0x01;
-		navDeviceStatus = (packet[packetDataSeek + k] >> 1) & 0x01;
-		logger.debug("Валидность координат : " + navDeviceStatus);
-		if (navDeviceStatus == 1) {
-			navSatellitesCount = 4;
+		logger.debug("Валидность координат : " + dasnStatus);
+		if (((packet[packetDataSeek + k] >> 1) & 0x01) == 1) {
+			dasnStatus = DATA_STATUS.ERR;
+		} else {
+			dasnStatus = DATA_STATUS.OK;
 		}
 		k = 40;
-		navDateTime = ModUtils.getDateTimeSignal(packet, packetDataSeek + k); // 40-45
+		dasnDatetime = DSF.parse(ModUtils.getDateTimeSignal(packet, packetDataSeek + k)); // 40-45
 																				// Дата
 																				// данных
-		logger.debug("Время координат : " + navDateTime);
+		logger.debug("Время координат : " + dasnDatetime);
 		k = 46;
-		navLatitude = ModUtils.convRadianToDegree(Float.intBitsToFloat(ModUtils
-				.getIntU32(packet, packetDataSeek + k)));
-		logger.debug("Широта : " + navLatitude);
+		dasnLatitude = Double.valueOf(ModUtils.convRadianToDegree(Float.intBitsToFloat(ModUtils
+				.getIntU32(packet, packetDataSeek + k))));
+		logger.debug("Широта : " + dasnLatitude);
 		k = 50;
-		navLongitude = ModUtils
+		dasnLongitude = Double.valueOf(ModUtils
 				.convRadianToDegree(Float.intBitsToFloat(ModUtils.getIntU32(
-						packet, packetDataSeek + k)));
-		logger.debug("Долгота : " + navLongitude);
+						packet, packetDataSeek + k))));
+		logger.debug("Долгота : " + dasnLongitude);
 		k = 54;
-		navSpeed = Float.intBitsToFloat(ModUtils.getIntU32(packet,
+		dasnSog = Double.valueOf(ModUtils.getIntU32(packet,
 				packetDataSeek + k));
-		logger.debug("Скорость : " + navSpeed);
+		logger.debug("Скорость : " + dasnSog);
 		k = 58;
-		navCource = ModUtils.getIntU16(packet, packetDataSeek + k);
-		logger.debug("Курс : " + navCource);
+		dasnCourse = Double.valueOf(ModUtils.getIntU16(packet, packetDataSeek + k));
+		logger.debug("Курс : " + dasnCourse);
 	}
 
 	private void parsePacketF1() {
@@ -636,12 +574,12 @@ public class ModSignal implements ModConstats {
 			packet[k] = dataSignatureArray[i];
 			k++;
 		}
-		for (int i = 0; i < navDeviceID.length; i++) {
-			packet[k] = navDeviceID[i];
+		for (int i = 0; i < navClientId.length; i++) {
+			packet[k] = navClientId[i];			
 			k++;
 		}
-		for (int i = 0; i < navServerID.length; i++) {
-			packet[k] = navServerID[i];
+		for (int i = 0; i < navServerId.length; i++) {
+			packet[k] = navServerId[i];
 			k++;
 		}
 		int cmdLength = cmd.length();
@@ -668,11 +606,11 @@ public class ModSignal implements ModConstats {
 	}
 
 	private void parseIMEI() {
-		navIMEI = "";
-		for (int i = 4; i < packetSize; i++) { // первый символ ;
-			navIMEI = navIMEI + (char) packet[i];
+		dasnUid = "";
+		for (int i = PACKET_HANDSHAKE_LENGTH; i < packetSize; i++) { // первый символ ;
+			dasnUid = dasnUid + (char) packet[i];
 		}
-		logger.debug("IMEI блока : " + navIMEI);
+		logger.debug("UID блока : " + dasnUid);
 	}
 
 	private void parseHeader() {
@@ -689,16 +627,16 @@ public class ModSignal implements ModConstats {
 		// signature);
 		// Идентификатор получателя
 		for (int i = 0; i < 4; i++) {
-			navServerID[i] = packetHeader[k];
+			navServerId[i] = packetHeader[k];
 			k++;
 		}
-		logger.debug("Ид сервера : " + ModUtils.getIntByte(navServerID));
+		logger.debug("Ид сервера : " + ModUtils.getIntByte(navServerId));
 		// Идентификатор отправителя
 		for (int i = 0; i < 4; i++) {
-			navDeviceID[i] = packetHeader[k];
+			navClientId[i] = packetHeader[k];
 			k++;
 		}
-		logger.debug("Ид терминала : " + ModUtils.getIntByte(navDeviceID));
+		logger.debug("Ид терминала : " + ModUtils.getIntByte(navClientId));
 		packetSize = (int) (packetHeader[12] & 0xff)
 				+ (int) ((packetHeader[13] & 0xff) << 8);
 		logger.debug("Размер пакета данных : " + packetSize);
@@ -734,38 +672,32 @@ public class ModSignal implements ModConstats {
 
 	private void writeData() throws ParseException {
 		// Сохраним в БД данные
-		map.put("vehicleId", String.valueOf(ModUtils.getIntByte(navDeviceID)));
-		map.put("dasnUid", String.valueOf(ModUtils.getIntByte(navDeviceID)));
-		map.put("dasnLatitude", String.valueOf(navLatitude));
-		map.put("dasnLongitude", String.valueOf(navLongitude));
-		map.put("dasnStatus", Integer.toString(navDeviceStatus));
-		map.put("dasnSatUsed", Integer.toString(navSatellitesCount));
-		map.put("dasnZoneAlarm", null);
-		map.put("dasnMacroId", null);
-		map.put("dasnMacroSrc", null);
-		map.put("dasnSog", String.valueOf(navSpeed));
-		map.put("dasnCource", String.valueOf(navCource));
-		map.put("dasnHdop", null);
-		map.put("dasnHgeo", null);
-		map.put("dasnHmet", null);
-		map.put("dasnGpio", String.valueOf(navGPIO));
-		map.put("dasnAdc", String.valueOf(navADC));
-		map.put("dasnTemp", String.valueOf((int) navTemp));
-		map.put("i_spmt_id", Integer.toString(this.conf.getModType())); // запись
-																		// в
-		// БД
-		map.put("dasnXML", "<xml><gl>" + navSatellitesType + "</gl><pw1>"
-				+ navPower + "</pw1><dt>" + navDateTimeFixed + "</dt><pw>"
-				+ navPowerReserv + "</pw></xml>");
-		pgcon.setDataSensor(map, sdf.parse(navDateTime));
+		dasnValues.put("GL", String.valueOf(navSatellitesType));
+		dasnValues.put("ACC1", String.valueOf(navAcc1));
+		dasnValues.put("ACC2", String.valueOf(navAcc2));
+		dasnValues.put("DI1", String.valueOf(navDigit1));
+		dasnValues.put("DI2", String.valueOf(navDigit2));
+		dasnValues.put("PW", String.valueOf(navPowerReserv));
+
+		dataSensor.setDasnDatetime(dasnDatetime);
+		dataSensor.setDasnUid(dasnUid);
+		dataSensor.setDasnTemp(dasnTemp);
+		dataSensor.setDasnAdc(dasnAdc);
+		dataSensor.setDasnLatitude(dasnLatitude);
+		dataSensor.setDasnLongitude(dasnLongitude);
+		dataSensor.setDasnSog(dasnSog);
+		dataSensor.setDasnGpio(dasnGpio);
+		dataSensor.setDasnSatUsed(dasnSatUsed);
+		dataSensor.setDasnCourse(dasnCourse);
+		dataSensor.setDasnValues(dasnValues);
+		pgcon.setDataSensorValues(dataSensor);
 		try {
 			pgcon.addDataSensor();
 			logger.debug("Write Database OK");
 		} catch (SQLException e) {
 			logger.warn("Error Writing Database : " + e.getMessage());
 		}
-		map.clear();
-
+		this.clear();
 	}
 
 }

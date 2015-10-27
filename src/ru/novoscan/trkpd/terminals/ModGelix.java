@@ -18,11 +18,11 @@ import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModGelix implements ModConstats {
+public class ModGelix extends Terminal {
 	public static final Pattern pattern = Pattern
 			.compile("(?i)^get id=(\\d+)(&amp;|&)len=(\\d+)(&amp;|&)data=(.*)$");
 
@@ -39,7 +39,8 @@ public class ModGelix implements ModConstats {
 	private float readbytes = 0;
 
 	public ModGelix(DataInputStream iDs, DataOutputStream oDs,
-			BufferedReader console, ModConfig conf, TrackPgUtils pgcon) throws IOException {
+			BufferedReader console, ModConfig conf, TrackPgUtils pgcon)
+			throws IOException {
 		String request;
 		request = console.readLine();
 		if (request != null) {

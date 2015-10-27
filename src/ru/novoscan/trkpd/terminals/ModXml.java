@@ -10,8 +10,6 @@ import java.io.StringReader;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.regex.Pattern;
 
 import org.w3c.dom.*;
@@ -23,13 +21,13 @@ import javax.xml.xpath.*;
 
 import org.apache.log4j.Logger;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 
-public class ModXml implements ModConstats {
+public class ModXml extends Terminal {
 	static Logger logger = Logger.getLogger(ModXml.class);
 
 	private static final Pattern rquit = Pattern.compile("^(?im)quit$");
@@ -38,11 +36,7 @@ public class ModXml implements ModConstats {
 
 	private float fullreadbytes = 0;
 
-	private SimpleDateFormat sdf = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
-
-	private HashMap<String, String> map = new HashMap<String, String>();
-
-	private Date date = new Date();
+	private final SimpleDateFormat DSF = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
 
 	// private TRKUtils utl = new TRKUtils();
 
@@ -140,10 +134,7 @@ public class ModXml implements ModConstats {
 			if (nodeName == "id") {
 				if (pid != null) {
 					// запись в БД предыдущего пакета
-					map.put("i_spmt_id", Integer.toString(conf.getModType()));
-					map.put("dasnMacroId", null);
-					map.put("dasnMacroSrc", null);
-					pgcon.setDataSensor(map, date);
+					pgcon.setDataSensorValues(dataSensor);
 					try {
 						pgcon.addDataSensor();
 						logger.debug("Write Database OK");
@@ -151,65 +142,59 @@ public class ModXml implements ModConstats {
 						logger.warn("Error Writing Database : "
 								+ e.getMessage());
 					}
-					map.clear();
+					this.clear();
 				}
 				logger.debug("Packet ID : " + nodeValue);
 				pid = Integer.parseInt(StringEscapeUtils
 						.unescapeHtml4(nodeValue));
 			} else if (nodeName == "uid") {
-				map.put("vehicleId", StringEscapeUtils.unescapeHtml4(nodeValue));
-				map.put("dasnUid", StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnUid(StringEscapeUtils.unescapeHtml4(nodeValue));
 			} else if (nodeName == "dt") {
-				date = sdf.parse(StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnDatetime(DSF.parse(StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "lat") {
-				map.put("dasnLatitude",
-						StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnLatitude(Double.valueOf(StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "lon") {
-				map.put("dasnLongitude",
-						StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnLongitude(Double.valueOf(StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "stat") {
-				map.put("dasnStatus",
-						StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnStatus(Long.valueOf(StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "sat") {
-				map.put("dasnSatUsed",
-						StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnSatUsed(Long.valueOf(
+						StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "alarm") {
-				map.put("dasnZoneAlarm",
-						StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnZoneAlarm(Long.valueOf(
+						StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "course") {
-				map.put("dasnCource",
-						StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnCourse(Double.valueOf(
+						StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "sog") {
-				map.put("dasnSog", StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnSog(Double.valueOf(StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "hdop") {
-				map.put("dasnHdop", StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnHdop(Double.valueOf(StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "hget") {
-				map.put("dasnHgeo", StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnHgeo(Double.valueOf(StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "gpio") {
-				map.put("dasnGpio", StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnGpio(Long.valueOf(StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "adc") {
-				map.put("dasnAdc", StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnAdc(Long.valueOf(StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else if (nodeName == "temp") {
-				map.put("dasnTemp", StringEscapeUtils.unescapeHtml4(nodeValue));
+				dataSensor.setDasnTemp(Double.valueOf(StringEscapeUtils.unescapeHtml4(nodeValue)));
 			} else {
-				map.put(nodeName, StringEscapeUtils.unescapeHtml4(nodeValue));
+				dasnValues.put(nodeName, StringEscapeUtils.unescapeHtml4(nodeValue));
 			}
 
 		}
 		if (pid != null) {
 			// запись последнего пакета
 			logger.debug("Packet ID : " + pid);
-			map.put("i_spmt_id", Integer.toString(conf.getModType()));
-			map.put("dasnMacroId", null);
-			map.put("dasnMacroSrc", null);
-			pgcon.setDataSensor(map, date);
+			pgcon.setDataSensorValues(dataSensor);
 			try {
 				pgcon.addDataSensor();
 				logger.debug("Write Database OK");
 			} catch (SQLException e) {
-				logger.warn("Error Writing Database : " + e.getMessage());
+				logger.warn("Error Writing Database : "
+						+ e.getMessage());
 			}
-			map.clear();
+			this.clear();
 		}
 	}
 

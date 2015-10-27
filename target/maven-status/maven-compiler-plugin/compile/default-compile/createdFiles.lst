@@ -10,7 +10,6 @@ ru/novoscan/trkpd/terminals/ModGnsMinitrack.class
 ru/novoscan/trkpd/terminals/ModMajak.class
 ru/novoscan/trkpd/terminals/ModSt270.class
 ru/novoscan/trkpd/terminals/ModScoutOpen.class
-ru/novoscan/trkpd/TrackServerTcp$Connection.class
 ru/novoscan/trkpd/terminals/ModNavis.class
 ru/novoscan/trkpd/TrackServerTcp.class
 ru/novoscan/trkpd/terminals/ModGs.class

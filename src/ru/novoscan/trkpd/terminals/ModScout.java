@@ -4,14 +4,14 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModScout {
+public class ModScout  extends Terminal {
 	/*
 	 * <?xml version="1.0" encoding="utf-8"?> <xs:schema
 	 * targetNamespace="https://novoscan.ru/utils/trkprd/mod/scout-mt500"
@@ -106,8 +106,6 @@ public class ModScout {
 
 	private int[] scoutReply;
 
-	private HashMap<String, String> map = new HashMap<String, String>();
-
 	public ModScout(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws IOException {
@@ -154,7 +152,7 @@ public class ModScout {
 				parsePacket();
 				readbytes = 0; // сбросим счётчик данных внутри пакета
 				logger.debug("Paket number " + packets + " data : " + slog);
-				map.clear();
+				this.clear();
 			}
 
 		}

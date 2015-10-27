@@ -4,28 +4,23 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.math.BigInteger;
 import java.sql.SQLException;
 import java.text.ParseException;
-import java.util.Date;
-import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
-import ru.novoscan.trkpd.resources.ModConstats;
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
-public class ModScoutOpen implements ModConstats {
+public class ModScoutOpen extends Terminal {
 	/*	
 */
 	static Logger logger = Logger.getLogger(ModScoutOpen.class);
 
 	private float fullreadbytes;
 
-	private HashMap<String, String> map = new HashMap<String, String>();
-
-	private final static int readOK = 0x55;
+	private final static int READ_OK = 0x55;
 
 	private static final RuntimeException InvalidLength = new RuntimeException(
 			"Превышение размера пакета.");
@@ -34,46 +29,23 @@ public class ModScoutOpen implements ModConstats {
 
 	private DataInputStream iDsLocal;
 
-	private int navSatellitesCount;
-
 	private int readbytes;
-
-	private String navDeviceID;
-
-	private Date navDateTime = new Date();
-
-	private float navLatitude;
-
-	private float navLongitude;
-
-	private float navSpeed;
-
-	private int navCource;
-
-	private int navGPIO;
-
-	private int navAdc0;
-
-	private int navAdc1;
-
-	private int navStat0;
-
-	private int navStat1;
-
-	private int navDeviceStatus;
-
-	private final ModConfig conf;
 
 	private final TrackPgUtils pgcon;
 
 	private final DataOutputStream oDs;
 
-	private HashMap<Integer, BigInteger> values = new HashMap<>();
+	private long navStat0;
+
+	private long navStat1;
+
+	private String navAdc0;
+
+	private String navAdc1;
 
 	public ModScoutOpen(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws IOException, ParseException {
-		this.conf = conf;
 		this.pgcon = pgcon;
 		this.oDs = oDs;
 		iDsLocal = iDs;
@@ -87,14 +59,13 @@ public class ModScoutOpen implements ModConstats {
 			}
 			logger.debug("Количество пакетов : " + packetCount);
 			for (int k = 0; k < packetCount; k++) {
-				map.clear();
 				int lenghtId = readByte();
-				navDeviceID = "";
+				dasnUid = "";
 				logger.debug("Длина ID терминала : " + lenghtId);
 				for (int i = 0; i < lenghtId; i++) {
-					navDeviceID = navDeviceID + (char) readByte();
+					dasnUid = dasnUid + (char) readByte();
 				}
-				logger.debug("ID терминала : " + navDeviceID);
+				logger.debug("ID терминала : " + dasnUid);
 				int protocolId = 0;
 				for (int i = 0; i < INT32; i++) {
 					protocolId = (readByte() << (i * 8)) + protocolId;
@@ -119,48 +90,49 @@ public class ModScoutOpen implements ModConstats {
 				}
 				timestamp = (timestamp - TICKS_AT_EPOCH)
 						/ TICKS_PER_MILLISECOND;
-				navDateTime.setTime(timestamp - TZ_OFFSET);
-				logger.debug("Дата : " + navDateTime);
+				dasnDatetime.setTime(timestamp - TZ_OFFSET);
+				logger.debug("Дата : " + dasnDatetime);
 
-				int longitude = 0;
+				Long longitude = 0L;
 				for (int i = 0; i < INT32; i++) {
 					longitude = (readByte() << (i * 8)) + longitude;
 				}
-				navLongitude = Float.intBitsToFloat(longitude);
-				logger.debug("Широта : " + navLongitude);
+				dasnLongitude = Double.longBitsToDouble(longitude);
+				logger.debug("Широта : " + dasnLongitude);
 
-				int latitude = 0;
+				Long latitude = 0L;
 				for (int i = 0; i < INT32; i++) {
 					latitude = (readByte() << (i * 8)) + latitude;
 				}
-				navLatitude = Float.intBitsToFloat(latitude);
-				logger.debug("Долгота : " + navLatitude);
+				dasnLatitude = Double.longBitsToDouble(latitude);
+				logger.debug("Долгота : " + dasnLatitude);
 
-				int speed = 0;
+				Long speed = 0L;
 				for (int i = 0; i < INT32; i++) {
 					speed = (readByte() << (i * 8)) + speed;
 				}
-				navSpeed = Float.intBitsToFloat(speed);
-				logger.debug("Скорость : " + navSpeed);
-				navCource = readByte() + (readByte() << 8);
-				logger.debug("Курс : " + navCource);
-				navGPIO = (readByte() << 8) + (readByte());
-				logger.debug("IO : " + navGPIO);
-				navAdc0 = readByte() + (readByte() << 8);
-				logger.debug("ADC0 значение : " + navAdc0);
-				navAdc1 = readByte() + (readByte() << 8);
-				logger.debug("ADC1 значение : " + navAdc1);
+				dasnSog = Double.longBitsToDouble(speed);
+				logger.debug("Скорость : " + dasnSog);
+				dasnCourse = (double) (readByte() + (readByte() << 8));
+				logger.debug("Курс : " + dasnCourse);
+				dasnGpio = Long.valueOf(readByte() << 8) + (readByte());
+				logger.debug("IO : " + dasnGpio);
+				navAdc0 =  String.valueOf(readByte() + (readByte() << 8));
+				logger.debug("ADC0 : " +  navAdc0);
+				navAdc1 =  String.valueOf(readByte() + (readByte() << 8));
+				logger.debug("ADC1 : " +  navAdc1);
 				navStat0 = readByte() + (readByte() << 8);
-				logger.debug("Stat0 значение : " + navStat0);
-				navStat1 = readByte() + (readByte() >> 8);
-				navSatellitesCount = navStat1 & 0x1f;
-				logger.debug("Спутники : " + navSatellitesCount);
+				logger.debug("Stat0 : " + navStat0);
+				navStat1 = readByte() + (readByte() << 8);
+				logger.debug("Stat1 : " + navStat1);
+				dasnSatUsed = navStat1 & 0x1f;
+				logger.debug("Спутники : " + dasnSatUsed);
 				if (((navStat1 & 0xff) >> 5) > 0) {
-					navDeviceStatus = 1;
+					dasnStatus = DATA_STATUS.OK;
 				} else {
-					navDeviceStatus = 0;
+					dasnStatus = DATA_STATUS.ERR;
 				}
-				logger.debug("Статус GPS : " + navDeviceStatus);
+				logger.debug("Статус GPS : " + dasnStatus);
 				int dataLen = readByte();
 				int dataSize = 0;
 				if ((dataLen >> 7) == 0) {
@@ -176,7 +148,6 @@ public class ModScoutOpen implements ModConstats {
 					data = data + readChar();
 				}
 				logger.debug("Датчики : " + data);
-				values.clear();
 				parseData(data);
 				writeData();
 			}
@@ -189,8 +160,6 @@ public class ModScoutOpen implements ModConstats {
 		int typeCode = 0;
 		int id = 0;
 		int value = 0;
-
-		values.clear();
 		try {
 			while (seek < data.length()) {
 				int endIndex = seek + 2;
@@ -203,7 +172,7 @@ public class ModScoutOpen implements ModConstats {
 				value = Integer.parseInt(data.substring(seek, endIndex), 16);
 				logger.debug("Ид : " + id + " Тип : " + typeCode + " Длина : "
 						+ lenght + " Значение : " + value);
-				values.put(id, BigInteger.valueOf(value));
+				dasnValues.put(String.valueOf(id), String.valueOf(value));
 				seek = endIndex;
 				id++;
 			}
@@ -241,26 +210,18 @@ public class ModScoutOpen implements ModConstats {
 
 	private void writeData() throws IOException, ParseException {
 		// Сохраним в БД данные
-		map.put("vehicleId", String.valueOf(navDeviceID));
-		map.put("dasnUid", String.valueOf(navDeviceID));
-		map.put("dasnLatitude", String.valueOf(navLatitude));
-		map.put("dasnLongitude", String.valueOf(navLongitude));
-		map.put("dasnStatus", Integer.toString(navDeviceStatus));
-		map.put("dasnSatUsed", Integer.toString(navSatellitesCount));
-		map.put("dasnZoneAlarm", null);
-		map.put("dasnMacroId", null);
-		map.put("dasnMacroSrc", null);
-		map.put("dasnSog", String.valueOf(navSpeed));
-		map.put("dasnCource", String.valueOf(navCource));
-		map.put("dasnHdop", null);
-		map.put("dasnHgeo", null);
-		map.put("dasnHmet", null);
-		map.put("dasnGpio", String.valueOf(navGPIO));
-		map.put("dasnAdc", String.valueOf(navAdc0));
-		map.put("dasnTemp", String.valueOf((int) navAdc1));
-		map.put("i_spmt_id", Integer.toString(this.conf.getModType())); // запись
-																		// в
-		pgcon.setDataSensorValues(map, navDateTime, values);
+		dataSensor.setDasnDatetime(dasnDatetime);
+		dataSensor.setDasnUid(dasnUid);
+		dataSensor.setDasnLatitude(dasnLatitude);
+		dataSensor.setDasnLongitude(dasnLongitude);
+		dataSensor.setDasnSog(dasnSog);
+		dataSensor.setDasnSatUsed(dasnSatUsed);
+		dataSensor.setDasnCourse(dasnCourse);
+		dataSensor.setDasnGpio(dasnGpio);
+		
+		dasnValues.put("Adc0", navAdc0);
+		dasnValues.put("Adc1", navAdc1);
+		
 		try {
 			pgcon.addDataSensor();
 			logger.debug("Write Database OK");
@@ -268,8 +229,8 @@ public class ModScoutOpen implements ModConstats {
 		} catch (SQLException e) {
 			logger.warn("Error Writing Database : " + e.getMessage());
 		}
-		map.clear();
-		oDs.write(readOK);
+		this.clear();
+		oDs.write(READ_OK);
 		readbytes = 0;
 	}
 

@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
@@ -18,7 +19,7 @@ import ru.novoscan.trkpd.utils.TrackPgUtils;
  * @author kur
  * 
  */
-public class ModAny {
+public class ModAny extends Terminal {
 	static Logger logger = Logger.getLogger(ModAny.class);
 
 	private static final Pattern rquit = Pattern.compile("(?im)quit.*");
@@ -36,7 +37,8 @@ public class ModAny {
 	// private HashMap map = new HashMap();
 
 	public ModAny(DataInputStream iDs, DataOutputStream oDs,
-			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon) throws IOException {
+			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
+			throws IOException {
 		int cread;
 		char data;
 		String slog = "";
