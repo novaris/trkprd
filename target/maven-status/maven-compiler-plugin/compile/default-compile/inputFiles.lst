@@ -5,6 +5,7 @@
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/resources/ServiceDataRecord.java
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/terminals/ModGalileoSky.java
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/utils/ModConfig.java
+/home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/domain/DataSensor.java
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/resources/SubRecordTermIdentity.java
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/terminals/ModGs.java
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/Track.java
@@ -21,7 +22,9 @@
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/terminals/ModAny.java
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/terminals/ModNovacom.java
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/terminals/ModSignal.java
+/home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/domain/DataSensorValues.java
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/terminals/ModTranskomT15.java
+/home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/domain/Terminal.java
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/resources/SubRecord.java
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/terminals/ModGelix.java
 /home/kurensky/workspace/trkprd/src/ru/novoscan/trkpd/terminals/ModScout.java

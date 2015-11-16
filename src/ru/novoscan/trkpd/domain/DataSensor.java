@@ -25,7 +25,7 @@ public class DataSensor {
 
 	private Double dasnLongitude;
 
-	private Long dasnStatus;
+	private Long dasnStatus = 1L;
 
 	private Long dasnSatUsed;
 
@@ -309,7 +309,7 @@ public class DataSensor {
 
 		this.dasnLongitude = null;
 
-		this.dasnStatus = null;
+		this.dasnStatus = 1L;
 
 		this.dasnSatUsed = null;
 

@@ -93,25 +93,25 @@ public class ModScoutOpen extends Terminal {
 				dasnDatetime.setTime(timestamp - TZ_OFFSET);
 				logger.debug("Дата : " + dasnDatetime);
 
-				Long longitude = 0L;
+				int longitude = 0;
 				for (int i = 0; i < INT32; i++) {
 					longitude = (readByte() << (i * 8)) + longitude;
 				}
-				dasnLongitude = Double.longBitsToDouble(longitude);
+				dasnLongitude =  (double) Float.intBitsToFloat(longitude);
 				logger.debug("Широта : " + dasnLongitude);
 
-				Long latitude = 0L;
+				int latitude = 0;
 				for (int i = 0; i < INT32; i++) {
 					latitude = (readByte() << (i * 8)) + latitude;
 				}
-				dasnLatitude = Double.longBitsToDouble(latitude);
+				dasnLatitude = (double) Float.intBitsToFloat(latitude);
 				logger.debug("Долгота : " + dasnLatitude);
 
-				Long speed = 0L;
+				int speed = 0;
 				for (int i = 0; i < INT32; i++) {
 					speed = (readByte() << (i * 8)) + speed;
 				}
-				dasnSog = Double.longBitsToDouble(speed);
+				dasnSog = (double) Float.intBitsToFloat(speed);
 				logger.debug("Скорость : " + dasnSog);
 				dasnCourse = (double) (readByte() + (readByte() << 8));
 				logger.debug("Курс : " + dasnCourse);
@@ -218,10 +218,10 @@ public class ModScoutOpen extends Terminal {
 		dataSensor.setDasnSatUsed(dasnSatUsed);
 		dataSensor.setDasnCourse(dasnCourse);
 		dataSensor.setDasnGpio(dasnGpio);
-		
 		dasnValues.put("Adc0", navAdc0);
 		dasnValues.put("Adc1", navAdc1);
-		
+		dataSensor.setDasnValues(dasnValues);
+		pgcon.setDataSensorValues(dataSensor);
 		try {
 			pgcon.addDataSensor();
 			logger.debug("Write Database OK");

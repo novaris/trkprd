@@ -148,6 +148,8 @@ public class ModWialon extends Terminal {
 
 	private Matcher pm;
 
+	private String uid;
+
 	public ModWialon(DatagramPacket dataPacket, DatagramSocket clientSocket,
 			ModConfig conf, TrackPgUtils pgcon) throws IOException {
 		this.conf = conf;
@@ -246,7 +248,6 @@ public class ModWialon extends Terminal {
 		logger.debug("Пакет данных : " + packetString);
 		logger.debug("Размер пакета данных : " + packetLength);
 		if (parsePacket()) {
-			logger.debug("Типа пакета : " + dasnPacketType);
 			sendAck();
 		}
 		fullreadbytes = packetLength;
@@ -335,10 +336,12 @@ public class ModWialon extends Terminal {
 		} else if (dasnPacketType.equalsIgnoreCase(PACKET_L)) {
 			// авторизация
 			// navDeviceStatus = 1;
+			uid = "";
 			mp = PAT_DATA_L.matcher(packetString);
 			if (mp.matches()) {
-				dasnUid = mp.group(1);
+				uid = mp.group(1);
 				passwd = mp.group(2);
+				dasnUid = uid;
 				logger.debug("Ид : " + dasnUid + " Пароль : " + passwd);
 				if (!checkIMEI())
 					throw new RuntimeErrorException(new Error("Login Error"),
@@ -450,6 +453,9 @@ public class ModWialon extends Terminal {
 				}
 			}
 		}
+		dasnUid = uid;
+		dataSensor.setDasnUid(dasnUid);
+		dataSensor.setDasnValues(dasnValues);
 
 	}
 
@@ -467,7 +473,6 @@ public class ModWialon extends Terminal {
 			logger.debug("Данные не валидные : " + dasnPackerCount);
 		}
 		this.clear();
-
 	}
 
 	private void sendAck() throws IOException {

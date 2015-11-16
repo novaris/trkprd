@@ -86,7 +86,7 @@ public class TrackPgUtils implements ModConstats {
 	}
 
 	public void addDataSensor() throws SQLException {
-		if (dataSensor.getDasnValues().size() > 0) {
+		if ((dataSensor != null) && (dataSensor.getDasnValues().size() > 0)) {
 			StringBuffer stringBuffer = new StringBuffer();
 			for (Entry<String, String> entry : dataSensor.getDasnValues()
 					.entrySet()) {
@@ -98,158 +98,172 @@ public class TrackPgUtils implements ModConstats {
 		} else {
 			valuesData = null;
 		}
-		try {
+		if (dataSensor != null) {
+			try {
 
-			logger.debug(new StringBuffer().append("SQL Statment : ")
-					.append("SELECT ").append("add_data_sensor('")
-					.append(dataSensor.getDasnUid()).append("'::varchar,")
-					.append(dataSensor.getDasnUid()).append("::int8,'")
-					.append(dateFormatFull.format(dataSensor.getDasnDatetime()))
-					.append("'::timestamp,")
-					.append(dataSensor.getDasnLatitude()).append("::float8,")
-					.append(dataSensor.getDasnLongitude()).append("::float8,")
-					.append(dataSensor.getDasnStatus()).append("::int4,")
-					.append(dataSensor.getDasnSatUsed()).append("::int4,")
-					.append(dataSensor.getDasnZoneAlarm()).append("::int4,")
-					.append(dataSensor.getDasnMacroId()).append("::int4,")
-					.append(dataSensor.getDasnMacroSrc()).append("::int4,")
-					.append(dataSensor.getDasnSog()).append("::float8,")
-					.append(dataSensor.getDasnCourse()).append("::float8,")
-					.append(dataSensor.getDasnHdop()).append("::float8,")
-					.append(dataSensor.getDasnHgeo()).append("::float8,")
-					.append(dataSensor.getDasnHmet()).append("::float8,")
-					.append(dataSensor.getDasnGpio()).append("::int4,")
-					.append(dataSensor.getDasnAdc()).append("::int8,")
-					.append(dataSensor.getDasnTemp()).append("::float8,")
-					.append("1::int4,'").append(valuesData).append("'::text,")
-					.append("now()::timestamp,")
-					.append(dataSensor.getDasnType()).append(")").toString());
-			ps = db.prepareStatement(new StringBuffer().append("SELECT ")
-					.append("add_data_sensor").append("(?::varchar")
-					// 1 идентификатор блока.
-					.append(",?::int8")
-					// 2 - идентификатор записи лога
-					.append(",?::timestamp") // 3
-												// -Дата
-												// время
-												// с
-												// таймзоной
-					.append(",?::float8") // 4 - latitude Географическая
-											// долгота
-					.append(",?::float8") // 5 - longitude Географическая
-											// широта
-					.append(",?::int4") // 6 - int4 -- Флаг состояний
-					.append(",?::int4") // 7 - int4 -- Количество спутников
-					.append(",?::int4") // 8 - int4 -- Состояние тревога зон
-										// охраны
-					.append(",?::int4") // 9 - int4 -- Номер макроса
-					.append(",?::int4") // 10 - int4 -- Код источника
-					.append(",?::float8") // 11 - float8 -- Скорость в км/ч
-					.append(",?::float8") // 12 - float8 -- Курс в градусах
-					.append(",?::float8") // 13 - float8 -- Значение HDOP
-					.append(",?::float8") // 14 - float8 -- Значение HGEO
-					.append(",?::float8") // 15 - float8 -- Значение HMET
-					.append(",?::int4") // 16 - int4 -- Состояние IO
-					.append(",?::int8") // 17 - int8 -- Состояние аналоговых
-										// входов
-					.append(",?::float8") // 18 - float8 -- Температура С
-					.append(",1::int4") // 19 - int4 -- Тип данных
-					.append(",?::text") // 20 -
-																	// text
-																	// Дополнтельные
-																	// данные.
-					.append(",now()::timestamp") // 21 - timestamp Дата
-													// модификации
-					.append(",?::int8)") // идентификатор типа блока
-					.toString());
-			if (dataSensor.isValid()) {
-				ps.setString(1, String.valueOf(dataSensor.getDasnUid()));
-				ps.setLong(2, Long.parseLong(dataSensor.getDasnUid()));
-				ps.setTimestamp(3, dataSensor.getDasnTimestamp());
-				ps.setDouble(4, dataSensor.getDasnLatitude());
-				ps.setDouble(5, dataSensor.getDasnLongitude());
-				if (dataSensor.getDasnStatus() == null) {
-					ps.setNull(6, java.sql.Types.LONGVARBINARY);
-				} else {
-					ps.setLong(6, dataSensor.getDasnStatus());
+				logger.debug(new StringBuffer()
+						.append("SQL Statment : ")
+						.append("SELECT ")
+						.append("add_data_sensor('")
+						.append(dataSensor.getDasnUid())
+						.append("'::varchar,")
+						.append(dataSensor.getDasnUid())
+						.append("::int8,'")
+						.append(dateFormatFull.format(dataSensor
+								.getDasnDatetime())).append("'::timestamp,")
+						.append(dataSensor.getDasnLatitude())
+						.append("::float8,")
+						.append(dataSensor.getDasnLongitude())
+						.append("::float8,").append(dataSensor.getDasnStatus())
+						.append("::int8,").append(dataSensor.getDasnSatUsed())
+						.append("::int8,")
+						.append(dataSensor.getDasnZoneAlarm())
+						.append("::int8,").append(dataSensor.getDasnMacroId())
+						.append("::int8,").append(dataSensor.getDasnMacroSrc())
+						.append("::int8,").append(dataSensor.getDasnSog())
+						.append("::float8,").append(dataSensor.getDasnCourse())
+						.append("::float8,").append(dataSensor.getDasnHdop())
+						.append("::float8,").append(dataSensor.getDasnHgeo())
+						.append("::float8,").append(dataSensor.getDasnHmet())
+						.append("::float8,").append(dataSensor.getDasnGpio())
+						.append("::int8,").append(dataSensor.getDasnAdc())
+						.append("::int8,").append(dataSensor.getDasnTemp())
+						.append("::float8,").append(dataSensor.getDasnType())
+						.append("::int8,'").append(valuesData)
+						.append("'::text,").append("now()::timestamp,")
+						.append(dataSensor.getDasnType()).append("::int8)")
+						.toString());
+				ps = db.prepareStatement(new StringBuffer().append("SELECT ")
+						.append("add_data_sensor").append("(?::varchar")
+						// 1 идентификатор блока.
+						.append(",?::int8")
+						// 2 - идентификатор записи лога
+						.append(",?::timestamp") // 3
+													// -Дата
+													// время
+													// с
+													// таймзоной
+						.append(",?::float8") // 4 - latitude Географическая
+												// долгота
+						.append(",?::float8") // 5 - longitude Географическая
+												// широта
+						.append(",?::int8") // 6 - int4 -- Флаг состояний
+						.append(",?::int8") // 7 - int4 -- Количество спутников
+						.append(",?::int8") // 8 - int4 -- Состояние тревога зон
+											// охраны
+						.append(",?::int8") // 9 - int4 -- Номер макроса
+						.append(",?::int8") // 10 - int4 -- Код источника
+						.append(",?::float8") // 11 - float8 -- Скорость в км/ч
+						.append(",?::float8") // 12 - float8 -- Курс в градусах
+						.append(",?::float8") // 13 - float8 -- Значение HDOP
+						.append(",?::float8") // 14 - float8 -- Значение HGEO
+						.append(",?::float8") // 15 - float8 -- Значение HMET
+						.append(",?::int8") // 16 - int4 -- Состояние IO
+						.append(",?::int8") // 17 - int8 -- Состояние аналоговых
+											// входов
+						.append(",?::float8") // 18 - float8 -- Температура С
+						.append(",?::int8") // 19 - int4 -- Тип данных
+						.append(",?::text") // 20 -
+											// text
+											// Дополнтельные
+											// данные.
+						.append(",now()::timestamp") // 21 - timestamp Дата
+														// модификации
+						.append(",?::int8)") // идентификатор типа терминала
+						.toString());
+				if (dataSensor.isValid()) {
+					ps.setString(1, String.valueOf(dataSensor.getDasnUid()));
+					ps.setLong(2, Long.parseLong(dataSensor.getDasnUid()));
+					ps.setTimestamp(3, dataSensor.getDasnTimestamp());
+					ps.setDouble(4, dataSensor.getDasnLatitude());
+					ps.setDouble(5, dataSensor.getDasnLongitude());
+					if (dataSensor.getDasnStatus() == null) {
+						ps.setNull(6, java.sql.Types.INTEGER);
+					} else {
+						ps.setLong(6, dataSensor.getDasnStatus());
+					}
+					if (dataSensor.getDasnSatUsed() == null) {
+						ps.setNull(7, java.sql.Types.INTEGER);
+					} else {
+						ps.setLong(7, dataSensor.getDasnSatUsed());
+					}
+					if (dataSensor.getDasnZoneAlarm() == null) {
+						ps.setNull(8, java.sql.Types.INTEGER);
+					} else {
+						ps.setLong(8, dataSensor.getDasnZoneAlarm());
+					}
+					if (dataSensor.getDasnMacroId() == null) {
+						ps.setNull(9, java.sql.Types.INTEGER);
+					} else {
+						ps.setLong(9, dataSensor.getDasnMacroId());
+					}
+					if (dataSensor.getDasnMacroSrc() == null) {
+						ps.setNull(10, java.sql.Types.INTEGER);
+					} else {
+						ps.setLong(10, dataSensor.getDasnMacroSrc());
+					}
+					if (dataSensor.getDasnSog() == null) {
+						ps.setNull(11, java.sql.Types.DOUBLE);
+					} else {
+						ps.setDouble(11, dataSensor.getDasnSog());
+					}
+					if (dataSensor.getDasnCourse() == null) {
+						ps.setNull(12, java.sql.Types.DOUBLE);
+					} else {
+						ps.setDouble(12, dataSensor.getDasnCourse());
+					}
+					if (dataSensor.getDasnHdop() == null) {
+						ps.setNull(13, java.sql.Types.DOUBLE);
+					} else {
+						ps.setDouble(13, dataSensor.getDasnHdop());
+					}
+					if (dataSensor.getDasnHgeo() == null) {
+						ps.setNull(14, java.sql.Types.DOUBLE);
+					} else {
+						ps.setDouble(14, dataSensor.getDasnHgeo());
+					}
+					if (dataSensor.getDasnHmet() == null) {
+						ps.setNull(15, java.sql.Types.DOUBLE);
+					} else {
+						ps.setDouble(15, dataSensor.getDasnHmet());
+					}
+					if (dataSensor.getDasnGpio() == null) {
+						ps.setNull(16, java.sql.Types.INTEGER);
+					} else {
+						ps.setLong(16, dataSensor.getDasnGpio());
+					}
+					if (dataSensor.getDasnAdc() == null) {
+						ps.setNull(17, java.sql.Types.INTEGER);
+					} else {
+						ps.setLong(17, dataSensor.getDasnAdc());
+					}
+					if (dataSensor.getDasnTemp() == null) {
+						ps.setNull(18, java.sql.Types.DOUBLE);
+					} else {
+						ps.setDouble(18, dataSensor.getDasnTemp());
+					}
+					ps.setLong(19, dataSensor.getDasnType());
+					if (valuesData == null) {
+						ps.setNull(20, java.sql.Types.INTEGER);
+					} else {
+						ps.setString(20, valuesData);
+					}
+					ps.setLong(21, config.getModType());
 				}
-				if (dataSensor.getDasnSatUsed() == null) {
-					ps.setNull(7, java.sql.Types.LONGVARBINARY);
-				} else {
-					ps.setLong(7, dataSensor.getDasnSatUsed());
-				}
-				if (dataSensor.getDasnZoneAlarm() == null) {
-					ps.setNull(8, java.sql.Types.LONGVARBINARY);
-				} else {
-					ps.setLong(8, dataSensor.getDasnZoneAlarm());
-				}
-				if (dataSensor.getDasnMacroId() == null) {
-					ps.setNull(9, java.sql.Types.LONGVARBINARY);
-				} else {
-					ps.setLong(9, dataSensor.getDasnMacroId());
-				}
-				if (dataSensor.getDasnMacroSrc() == null) {
-					ps.setNull(10, java.sql.Types.INTEGER);
-				} else {
-					ps.setLong(10, dataSensor.getDasnMacroSrc());
-				}
-				if (dataSensor.getDasnSog() == null) {
-					ps.setNull(11, java.sql.Types.DOUBLE);
-				} else {
-					ps.setDouble(11, dataSensor.getDasnSog());
-				}
-				if (dataSensor.getDasnCourse() == null) {
-					ps.setNull(12, java.sql.Types.DOUBLE);
-				} else {
-					ps.setDouble(12, dataSensor.getDasnCourse());
-				}
-				if (dataSensor.getDasnHdop() == null) {
-					ps.setNull(13, java.sql.Types.DOUBLE);
-				} else {
-					ps.setDouble(13, dataSensor.getDasnHdop());
-				}
-				if (dataSensor.getDasnHgeo() == null) {
-					ps.setNull(14, java.sql.Types.DOUBLE);
-				} else {
-					ps.setDouble(14, dataSensor.getDasnHgeo());
-				}
-				if (dataSensor.getDasnHmet() == null) {
-					ps.setNull(15, java.sql.Types.DOUBLE);
-				} else {
-					ps.setDouble(15, dataSensor.getDasnHmet());
-				}
-				if (dataSensor.getDasnGpio() == null) {
-					ps.setNull(16, java.sql.Types.LONGVARBINARY);
-				} else {
-					ps.setLong(16, dataSensor.getDasnGpio());
-				}
-				if (dataSensor.getDasnAdc() == null) {
-					ps.setNull(17, java.sql.Types.LONGVARBINARY);
-				} else {
-					ps.setLong(17, dataSensor.getDasnAdc());
-				}
-				if (dataSensor.getDasnTemp() == null) {
-					ps.setNull(18, java.sql.Types.DOUBLE);
-				} else {
-					ps.setDouble(18, dataSensor.getDasnTemp());
-				}
-				ps.setLong(19, dataSensor.getDasnType());
-				if (valuesData == null) {
-					ps.setNull(20,java.sql.Types.LONGVARCHAR);
-				} else {
-					ps.setString(20, valuesData);
-				}
-				ps.setLong(21, config.getModType());
+				resultSet = ps.executeQuery();
+				db.commit();
+
+			} catch (Exception e) {
+				closeStatment();
+				e.printStackTrace();
+				logger.warn(e.getMessage());
+				throw new RuntimeException(e);
 			}
-			resultSet = ps.executeQuery();
-			db.commit();
-
-		} catch (Exception e) {
 			closeStatment();
-			logger.warn(e.getMessage());
-			throw new RuntimeException(e);
+		} else {
+			logger.error("Нет данных для записи в БД!");
 		}
-		closeStatment();
+		
 	}
 
 	public int getImeiModule(String imei) {

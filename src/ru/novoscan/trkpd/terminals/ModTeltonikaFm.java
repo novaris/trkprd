@@ -59,6 +59,8 @@ public class ModTeltonikaFm extends Terminal {
 
 	private int navAvlId;
 
+	private String uid;
+
 	public ModTeltonikaFm(DatagramPacket dataPacket,
 			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon)
 			throws IOException {
@@ -115,6 +117,7 @@ public class ModTeltonikaFm extends Terminal {
 			avlDataCount = readByte();
 			logger.debug("NumberOfData : " + avlDataCount);
 			for (int i = 0; i < avlDataCount; i++) {
+				dasnUid = uid;
 				logger.debug("Обработка пакета : " + i);
 				getGnss();
 				getIO();
@@ -190,11 +193,11 @@ public class ModTeltonikaFm extends Terminal {
 	}
 
 	private void parseIMEI() {
-		dasnUid = "";
+		uid = "";
 		for (int i = 0; i < 15; i++) {
-			dasnUid = dasnUid + (char) readByte();
+			uid = uid + (char) readByte();
 		}
-		logger.debug("IMEI : " + dasnUid);
+		logger.debug("IMEI : " + uid);
 		if (!checkIMEI()) {
 			logger.warn("IMEI incorrect");
 		}
