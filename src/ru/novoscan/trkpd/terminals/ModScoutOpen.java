@@ -115,7 +115,7 @@ public class ModScoutOpen extends Terminal {
 				logger.debug("Скорость : " + dasnSog);
 				dasnCourse = (double) (readByte() + (readByte() << 8));
 				logger.debug("Курс : " + dasnCourse);
-				dasnGpio = Long.valueOf(readByte() << 8) + (readByte());
+				dasnGpio = (long) (readByte() + (readByte() << 8));
 				logger.debug("IO : " + dasnGpio);
 				navAdc0 =  String.valueOf(readByte() + (readByte() << 8));
 				logger.debug("ADC0 : " +  navAdc0);
@@ -160,18 +160,23 @@ public class ModScoutOpen extends Terminal {
 		int typeCode = 0;
 		int id = 0;
 		int value = 0;
+		int endIndex = 0;
+		int lenght = 0;
+		
 		try {
 			while (seek < data.length()) {
-				int endIndex = seek + 2;
+				logger.debug("Ид : " + id);
+				endIndex = seek + 2;
 				typeCode = Integer.valueOf(data.substring(seek, endIndex));
+				logger.debug(" Тип : " + typeCode);
 				seek = endIndex;
 				endIndex = seek + 2;
-				int lenght = Integer.valueOf(data.substring(seek, endIndex));
+				lenght = Integer.valueOf(data.substring(seek, endIndex));
+				logger.debug(" Длина : " + typeCode);
 				seek = endIndex;
 				endIndex = seek + 2 * lenght;
 				value = Integer.parseInt(data.substring(seek, endIndex), 16);
-				logger.debug("Ид : " + id + " Тип : " + typeCode + " Длина : "
-						+ lenght + " Значение : " + value);
+				logger.debug(" Значение : " + value);
 				dasnValues.put(String.valueOf(id), String.valueOf(value));
 				seek = endIndex;
 				id++;
@@ -179,7 +184,6 @@ public class ModScoutOpen extends Terminal {
 		} catch (NumberFormatException nfe) {
 			logger.error("Неверное значение : " + value);
 			seek = data.length();
-
 		}
 
 	}

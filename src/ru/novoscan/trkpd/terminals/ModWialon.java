@@ -84,7 +84,7 @@ public class ModWialon extends Terminal {
 					"(?:" + FIELD_NA + "|(.*))" + // params
 					")?");
 
-	private static final Pattern PAT_DATA_L = Pattern.compile("(\\w+);(\\w+)");
+	private static final Pattern PAT_DATA_L = Pattern.compile("(\\w+);(\\w*)");
 
 	private static final String PACKET_L = "L";
 
@@ -149,6 +149,8 @@ public class ModWialon extends Terminal {
 	private Matcher pm;
 
 	private String uid;
+	
+	private Calendar time = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
 
 	public ModWialon(DatagramPacket dataPacket, DatagramSocket clientSocket,
 			ModConfig conf, TrackPgUtils pgcon) throws IOException {
@@ -336,13 +338,11 @@ public class ModWialon extends Terminal {
 		} else if (dasnPacketType.equalsIgnoreCase(PACKET_L)) {
 			// авторизация
 			// navDeviceStatus = 1;
-			uid = "";
 			mp = PAT_DATA_L.matcher(packetString);
 			if (mp.matches()) {
 				uid = mp.group(1);
 				passwd = mp.group(2);
-				dasnUid = uid;
-				logger.debug("Ид : " + dasnUid + " Пароль : " + passwd);
+				logger.debug("Ид : " + uid + " Пароль : " + passwd);
 				if (!checkIMEI())
 					throw new RuntimeErrorException(new Error("Login Error"),
 							"Неверный Ид терминала или пароль.");
@@ -357,8 +357,8 @@ public class ModWialon extends Terminal {
 		String tmp = "";
 		dasnStatus = DATA_STATUS.ERR;
 		dasnPackerCount++;
+		dataSensor.setDasnUid(uid);
 		// Date and Time
-		Calendar time = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
 		time.clear();
 		time.set(Calendar.DAY_OF_MONTH, Integer.parseInt(mp.group(index++)));
 		time.set(Calendar.MONTH, Integer.parseInt(mp.group(index++)) - 1);
@@ -453,10 +453,7 @@ public class ModWialon extends Terminal {
 				}
 			}
 		}
-		dasnUid = uid;
-		dataSensor.setDasnUid(dasnUid);
 		dataSensor.setDasnValues(dasnValues);
-
 	}
 
 	private void writeData() {
