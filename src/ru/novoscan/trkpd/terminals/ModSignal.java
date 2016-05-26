@@ -43,7 +43,7 @@ public class ModSignal extends Terminal {
 
 	private static int[] packet;
 
-	private static int packetDataLength = 32768; // максимальная длина пакета с
+	private final static int packetDataLength = 65551; // максимальная длина пакета с
 
 	// private String navPhone;
 

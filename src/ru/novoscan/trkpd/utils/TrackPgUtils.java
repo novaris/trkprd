@@ -252,14 +252,12 @@ public class TrackPgUtils implements ModConstats {
 				}
 				resultSet = ps.executeQuery();
 				db.commit();
-
 			} catch (Exception e) {
-				closeStatment();
+				closeStatement();
 				e.printStackTrace();
 				logger.warn(e.getMessage());
 				throw new RuntimeException(e);
 			}
-			closeStatment();
 		} else {
 			logger.error("Нет данных для записи в БД!");
 		}
@@ -394,17 +392,19 @@ public class TrackPgUtils implements ModConstats {
 		this.pgPort = pgPort;
 	}
 
-	private void closeStatment() {
+	private void closeStatement() {
 		try {
 			if (this.ps != null && !this.ps.isClosed()) {
-				ps.close();
+				this.ps.close();
+				this.ps = null;
 			}
 		} catch (SQLException e) {
-
+			logger.error("Ошибка closeStatement: "+e.getLocalizedMessage());
+			e.printStackTrace();
 		}
 	}
 
-	private void closeExexute() {
+	private void closeExecute() {
 		try {
 			if (this.resultSet != null && !this.resultSet.isClosed()) {
 				resultSet.close();
@@ -413,13 +413,14 @@ public class TrackPgUtils implements ModConstats {
 				result.close();
 			}
 		} catch (SQLException e) {
-
+			logger.error("Ошибка closeExecute: "+e.getLocalizedMessage());
+			e.printStackTrace();
 		}
 	}
 
 	public void close() throws SQLException {
-		closeExexute();
-		closeStatment();
+		closeExecute();
+		//closeStatement();
 		if (this.db != null && !this.db.isClosed()) {
 			this.db.rollback();
 			this.db.close();

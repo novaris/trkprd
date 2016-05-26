@@ -89,7 +89,7 @@ public class TrackServerUdp implements TrackServer {
 					throw new ParseException("Неподдерживаемый тип модуля",
 							modType);
 				}
-				logger.debug("Получено байт : " + readBytes);
+				logger.info("Получено байт : " + readBytes);
 				pgConnect.close();
 			} catch (ParseException e) {
 				logger.error("Неподдерживаемый тип модуля : "
@@ -103,10 +103,11 @@ public class TrackServerUdp implements TrackServer {
 			} finally {
 				try {
 					pgConnect.close();
+					logger.info("Соединение с базой закрыто");
 				} catch (SQLException e) {
-					logger.error(e.getLocalizedMessage());
+					logger.error("Ошибка закрытия соединения с БД : "
+							+ e.getLocalizedMessage());
 				}
-				logger.debug("Соединение закрыто.");
 			}
 
 		}
