@@ -65,29 +65,32 @@ public class TrackServerTcp implements TrackServer {
 	public void run() throws IOException {
 		logger.debug("Запуск TCP сервера : " + config.getHost() + ":"
 				+ config.getPort());
-		ServerSocket listener = new ServerSocket(config.getPort(), config.getMaxConn(),
-				config.getHost());
+		ServerSocket listener = new ServerSocket(config.getPort(),
+				config.getMaxConn(), config.getHost());
 		int clientNumber = 0;
 		logger.debug("Сервер запущен.");
-        try {
-            while (true) {
-            	new TCPReader(listener.accept(), clientNumber++).start();
-            }
-        } finally {
-            listener.close();
-            logger.debug("Соединение закрыто");
-        }
-		
-	}
+		try {
+			while (true) {
+				new TCPReader(listener.accept(), clientNumber++).start();
+			}
+		} finally {
+			try {
+				pgConnect.close();
+			} catch (SQLException e) {
+				logger.error("Ошибка закрытия соединения с БД : "
+						+ e.getLocalizedMessage());
+			}
+			listener.close();
+			logger.debug("Соединение закрыто");
+		}
 
+	}
 
 	class TCPReader extends Thread implements ModConstats {
 
-		
-        private Socket clientSocket;
+		private Socket clientSocket;
 
-        private int clientNumber;
-
+		private int clientNumber;
 
 		public TCPReader(Socket clientSocket, int clientNumber) {
 			this.clientSocket = clientSocket;
@@ -96,6 +99,7 @@ public class TrackServerTcp implements TrackServer {
 					+ clientSocket.getRemoteSocketAddress().toString());
 
 		}
+
 		public void run() {
 			double readBytes = 0;
 			try {
@@ -104,9 +108,10 @@ public class TrackServerTcp implements TrackServer {
 						clientSocket.getInputStream());
 				DataOutputStream dataOutputStream = new DataOutputStream(
 						clientSocket.getOutputStream());
-				BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(
-						dataInputStream));
-				InputStreamReader inputStreamReader = new InputStreamReader(dataInputStream);
+				BufferedReader bufferedReader = new BufferedReader(
+						new InputStreamReader(dataInputStream));
+				InputStreamReader inputStreamReader = new InputStreamReader(
+						dataInputStream);
 
 				pgConnect.connect();
 				int modType = config.getModType();
@@ -138,7 +143,7 @@ public class TrackServerTcp implements TrackServer {
 							dataOutputStream, inputStreamReader, config,
 							pgConnect);
 					readBytes = mod.getReadBytes();
-				} else if (modType == TERM_TYPE_SIGNAL_S21) {
+				} else if (modType == TERM_TYPE_SIGNAL) {
 					ModSignal mod = new ModSignal(dataInputStream,
 							dataOutputStream, inputStreamReader, config,
 							pgConnect);

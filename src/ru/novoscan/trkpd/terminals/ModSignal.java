@@ -20,6 +20,7 @@ import ru.novoscan.trkpd.utils.TrackPgUtils;
  * 
  */
 public class ModSignal extends Terminal {
+
 	private static int[] navClientId = new int[4];
 
 	private static int[] navServerId = new int[4];
@@ -34,7 +35,6 @@ public class ModSignal extends Terminal {
 
 	private int navAcc2;
 
-
 	static Logger logger = Logger.getLogger(ModSignal.class);
 
 	private int readbytes;
@@ -43,7 +43,7 @@ public class ModSignal extends Terminal {
 
 	private static int[] packet;
 
-	private final static int packetDataLength = 65551; // максимальная длина пакета с
+	private static int packetDataLength = 32768; // максимальная длина пакета с
 
 	// private String navPhone;
 
@@ -75,6 +75,12 @@ public class ModSignal extends Terminal {
 
 	private final String SIGNATURE_A = "*>A";
 
+	private final String SIGNATURE_RESPONCE_S = "*<S"; // Сигнатура пакета S2115
+	
+	private final String SIGNATURE_RESPONCE_T = "*<T";
+
+	private final String SIGNATURE_RESPONCE_A = "*<A";
+
 	private final int PACKET_F1 = 0x01;
 
 	private final int PACKET_F2 = 0x02;
@@ -83,15 +89,25 @@ public class ModSignal extends Terminal {
 
 	private final int PACKET_LENGTH_F5 = 67;
 
+	private final int PACKET_LENGTH_F6 = 111; // ???
+	
+	private static final int PACKET_LENGTH_F15 = 82; // 2 байта заголовок пакета
+
+	private static final int PACKET_LENGTH_F25 = 86; // 2 байта заголовок
+
 	private final int PACKET_F3 = 0x03;
 
 	private final int PACKET_F4 = 0x04;
 
 	private final int PACKET_F5 = 0x05;
 
+	private final int PACKET_F6 = 0x06;
+
 	private final int PACKET_F15 = 0x15;
 
 	private final int PACKET_F25 = 0x25;
+	
+	private final int PACKET_COUNT_T = 1;
 
 	private String cmdSignature = "";
 
@@ -123,13 +139,21 @@ public class ModSignal extends Terminal {
 
 	private SimpleDateFormat DSF = new SimpleDateFormat(DATE_SIMPLE_FORMAT);
 
+	private Double navLls1;
+
+	private Double navLls2;
+
+	private Double navLls3;
+
+	private String uid;
 
 	public ModSignal(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
+		this.setDasnType(conf.getModType());
 		this.pgcon = pgcon;
 		iDsLocal = iDs;
-		logger.debug("Read streems..");
+		logger.debug("Чтение потока...");
 		packetHeader = new int[PACKET_HANDSHAKE_LENGTH]; // пакет с нулевого
 															// считается
 		packet = new int[packetDataLength]; // пакет с нулевого считается
@@ -152,23 +176,22 @@ public class ModSignal extends Terminal {
 				if (cmdSignature.equals(SIGNATURE_S)) {
 					// Пакет первичной инициализации
 					parseIMEI();
-					if (dasnUid.length() == 0) {
+					if (uid.length() == 0) {
 						// Ошибка не определён IMEI
 						logger.error("Не определён IMEI");
 						throw new RuntimeException(
 								"Неверные данные пакета HANDSHAKE : IMEI не определён");
 					}
-					cmd = "*<S";
+					cmd = SIGNATURE_RESPONCE_S;
 				} else if (cmdSignature.equals(SIGNATURE_T)) {
 					// Телеметрические записи
 					parseDataTypeT();
-					cmd = "*<T" + (char) dataIndex;
+					cmd = SIGNATURE_RESPONCE_T + (char) PACKET_COUNT_T;
 				} else if (cmdSignature.equals(SIGNATURE_A)) {
 					// Архивные данные
 					parseDataTypeA();
-					cmd = "*<A" + (char) dataBlockCount;
+					cmd = SIGNATURE_RESPONCE_A + (char) dataBlockCount;
 				}
-				// ответим
 				/*
 				 * Формат ответа: dataSignature +navServerID +navDeviceID
 				 * +длина_сигнатуры_запроса +КонтрольнаяСуммаОтвета
@@ -205,6 +228,7 @@ public class ModSignal extends Terminal {
 
 	private void parseDataTypeT() throws IOException, ParseException {
 		logger.debug("Он-лайн пакет.");
+		setPacketCount();
 		setFormatType();
 		switch (getFormatType()) {
 		case PACKET_F1:
@@ -218,15 +242,23 @@ public class ModSignal extends Terminal {
 			break;
 		case PACKET_F4:
 			parsePacketF4();
+			writeData();
 			break;
 		case PACKET_F5:
 			parsePacketF5();
+			writeData();
+			break;
+		case PACKET_F6:
+			parsePacketF6();
+			writeData();
 			break;
 		case PACKET_F15:
 			parsePacketF15();
+			writeData();
 			break;
 		case PACKET_F25:
 			parsePacketF25();
+			writeData();
 			break;
 		default:
 			logger.error("Неверный тип пакета : " + getFormatType());
@@ -240,6 +272,7 @@ public class ModSignal extends Terminal {
 		dataBlockCount = 0;
 		setPacketCount();
 		for (int i = 0; i < packetCount; i++) {
+			logger.debug("Смещение : " + packetDataSeek);
 			setFormatType();
 			switch (getFormatType()) {
 			case PACKET_F1:
@@ -261,18 +294,27 @@ public class ModSignal extends Terminal {
 				packetDataSeek = packetDataSeek + PACKET_LENGTH_F5;
 				writeData();
 				break;
+			case PACKET_F6:
+				parsePacketF6();
+				packetDataSeek = packetDataSeek + PACKET_LENGTH_F6;
+				writeData();
+				break;
 			case PACKET_F15:
 				parsePacketF15();
+				packetDataSeek = packetDataSeek + PACKET_LENGTH_F15;
+				writeData();
 				break;
 			case PACKET_F25:
 				parsePacketF25();
+				packetDataSeek = packetDataSeek + PACKET_LENGTH_F25;
+				writeData();
 				break;
 			default:
 				logger.error("Неверный тип пакета : " + getFormatType());
 				throw new RuntimeException("Тип пакета не поддерживается : "
 						+ getFormatType());
 			}
-			dataBlockCount = dataBlockCount + 1;
+			dataBlockCount++;
 		}
 	}
 
@@ -281,7 +323,7 @@ public class ModSignal extends Terminal {
 			this.packetCount = packet[CMD_SIGNATURE_LENGTH];
 			this.packetDataSeek = CMD_SIGNATURE_LENGTH + 1;
 		} else if (cmdSignature.equals(SIGNATURE_T)) {
-			this.packetCount = 1;
+			this.packetCount = PACKET_COUNT_T;
 			this.packetDataSeek = CMD_SIGNATURE_LENGTH;
 		}
 		logger.debug("Количество пакетов данных : "
@@ -289,6 +331,7 @@ public class ModSignal extends Terminal {
 	}
 
 	private void setFormatType() {
+		logger.debug("Порядок байта типа формата : " + packetDataSeek);
 		if (cmdSignature.equals(SIGNATURE_A)) {
 			formatType = packet[packetDataSeek];
 		} else if (cmdSignature.equals(SIGNATURE_T)) {
@@ -297,14 +340,35 @@ public class ModSignal extends Terminal {
 		logger.debug("Тип пакета : " + Integer.toHexString(formatType));
 	}
 
-	private void parsePacketF25() {
-		// TODO Auto-generated method stub
+	private void parsePacketF25() throws ParseException {
 		logger.debug("Парсим F25");
-		for (int i = 0; i < 4; i++) {
-			dataIndexBytes[i] = packet[i + 1];
-		}
-		dataIndex = ModUtils.getIntU32(dataIndexBytes);
-
+		parsePacketF5();
+		// k = 55-58 Текущий пробег
+		// k = 59-62 Последний отрезок пути
+		// k = 63-64 Общее количество секунд на последнем отрезке пути
+		// k = 65-66 Количество секунд на последнем отрезке пути
+		// k = 70-71 Частота датчика уровня топлива 1
+		int k = 70;
+		navLls1 = Double
+				.valueOf(ModUtils.getIntU16(packet, packetDataSeek + k));
+		// k = 72 Температура, измеренная датчиком 1
+		// k = 73-74 Уровень топлива, измеренный датчиком 1
+		// k = 75-76 Частота датчика уровня топлива 2
+		k = 75;
+		navLls2 = Double
+				.valueOf(ModUtils.getIntU16(packet, packetDataSeek + k));
+		// k = 77 Температура, измеренная датчиком 2
+		// k = 78-79 Уровень топлива, измеренный датчиком 2
+		// k = 80-81 Частота датчика уровня топлива 3
+		k = 80;
+		navLls3 = Double
+				.valueOf(ModUtils.getIntU16(packet, packetDataSeek + k));
+		// k = 81 Температура, измеренная датчиком 3
+		// k = 82-83 Уровень топлива, измеренный датчиком 3
+		// k = 84 Температура с цифрового датчика 1
+		// k = 85 Температура с цифрового датчика 2
+		// k = 86 Температура с цифрового датчика 3
+		// k = 87 Температура с цифрового датчика 4
 	}
 
 	private void parsePacketF15() {
@@ -327,10 +391,10 @@ public class ModSignal extends Terminal {
 																	// записи
 		logger.debug("Ид записи : " + id);
 		k = 5;
-		int iventId = ModUtils.getIntU16(packet, packetDataSeek + k); // 5-6 ид
-																		// типа
-																		// события
-		logger.debug("Ид события : " + iventId);
+		dataIndex = ModUtils.getIntU16(packet, packetDataSeek + k); // 5-6 ид
+																	// типа
+																	// события
+		logger.debug("Ид события : " + dataIndex);
 		k = 7;
 		navDateTimeFixed = ModUtils.getDateTimeSignal(packet, packetDataSeek
 				+ k); // 8-13 Дата фиксации события
@@ -344,9 +408,9 @@ public class ModSignal extends Terminal {
 
 		k = 18; // Наряжение на основном питании
 		dasnAdc = (long) (ModUtils.getIntU16(packet, packetDataSeek + k) / 1000.0); // Питание
-																						// в
-																						// миливольтах
-																						// 21-22
+																					// в
+																					// миливольтах
+																					// 21-22
 		logger.debug("Питание в вольтах : " + dasnAdc);
 		k = 20;
 		navPowerReserv = (float) (ModUtils
@@ -398,20 +462,21 @@ public class ModSignal extends Terminal {
 		navSatellitesType = packet[packetDataSeek + k] >> 2 & 0xff; // 38
 		logger.debug("Тип определения местоположения : " + navSatellitesType);
 		// navNavOnOff = packet[packetDataSeek+k] & 0x01;
-		if (((packet[packetDataSeek + k] >> 1) & 0x01 
-				)== 0) {
+		if (((packet[packetDataSeek + k] >> 1) & 0x01) == 0) {
 			dasnStatus = DATA_STATUS.ERR; // координаты невалидны!
 		} else {
 			dasnStatus = DATA_STATUS.OK;
 		}
 		k = 35;
-		dasnDatetime = DSF.parse(ModUtils.getDateTimeSignal(packet, packetDataSeek + k)); // 35-40
-																				// Дата
-																				// данных
+		dasnDatetime = DSF.parse(ModUtils.getDateTimeSignal(packet,
+				packetDataSeek + k)); // 35-40
+		// Дата
+		// данных
 		logger.debug("Время координат : " + dasnDatetime);
 		k = 41;
-		dasnLatitude = (double) ModUtils.convRadianToDegree(Float.intBitsToFloat(ModUtils
-				.getIntU32(packet, packetDataSeek + k)));
+		dasnLatitude = (double) ModUtils
+				.convRadianToDegree(Float.intBitsToFloat(ModUtils.getIntU32(
+						packet, packetDataSeek + k)));
 		logger.debug("Широта : " + dasnLatitude);
 		k = 45;
 		dasnLongitude = (double) ModUtils
@@ -419,11 +484,12 @@ public class ModSignal extends Terminal {
 						packet, packetDataSeek + k)));
 		logger.debug("Долгота : " + dasnLongitude);
 		k = 49;
-		dasnSog = Double.valueOf(ModUtils.getIntU32(packet,
-				packetDataSeek + k));
+		dasnSog = Double
+				.valueOf(ModUtils.getIntU32(packet, packetDataSeek + k));
 		logger.debug("Скорость : " + dasnSog);
 		k = 53;
-		dasnCourse = Double.valueOf(ModUtils.getIntU16(packet, packetDataSeek + k));
+		dasnCourse = Double.valueOf(ModUtils.getIntU16(packet, packetDataSeek
+				+ k));
 		logger.debug("Курс : " + dasnCourse);
 	}
 
@@ -471,9 +537,9 @@ public class ModSignal extends Terminal {
 		k = 19; // Датчики цифровых входов 19-20
 		k = 21; // Наряжение на основном питании
 		dasnAdc = (long) (ModUtils.getIntU16(packet, packetDataSeek + k) / 1000.0); // Питание
-																						// в
-																						// миливольтах
-																						// 21-22
+																					// в
+																					// миливольтах
+																					// 21-22
 		logger.debug("Питание в вольтах : " + dasnAdc);
 		k = 23;
 		navPowerReserv = (float) (ModUtils
@@ -482,8 +548,8 @@ public class ModSignal extends Terminal {
 																	// 23-24
 		logger.debug("Резервное питание в вольтах : " + navPowerReserv);
 		k = 25;
-		dasnTemp = Double.valueOf(((packet[packetDataSeek + k]) << 8) + (packet[packetDataSeek
-				+ k + 1])); // Температура в градусах
+		dasnTemp = Double.valueOf(((packet[packetDataSeek + k]) << 8)
+				+ (packet[packetDataSeek + k + 1])); // Температура в градусах
 		logger.debug("Температура градусы : " + dasnTemp);
 		k = 27;
 		navAcc1 = ModUtils.getIntU16(packet, packetDataSeek + k); // Значение на
@@ -518,8 +584,9 @@ public class ModSignal extends Terminal {
 																	// события)
 																	// вход 1
 																	// 35-38
-		dasnGpio = (long) (navDigit1 + (navDigit2 << 8)); // Спутники - 2-7 бит (0-1 байт
-												// выхода 0 - ВЫКЛ 1 - ВКЛ)
+		dasnGpio = (long) (navDigit1 + (navDigit2 << 8)); // Спутники - 2-7 бит
+															// (0-1 байт
+		// выхода 0 - ВЫКЛ 1 - ВКЛ)
 		// Состояние навигации
 		k = 39;
 		navSatellitesType = packet[packetDataSeek + k] >> 2 & 0xff; // 38
@@ -533,25 +600,30 @@ public class ModSignal extends Terminal {
 			dasnStatus = DATA_STATUS.OK;
 		}
 		k = 40;
-		dasnDatetime = DSF.parse(ModUtils.getDateTimeSignal(packet, packetDataSeek + k)); // 40-45
-																				// Дата
-																				// данных
+		dasnDatetime = DSF.parse(ModUtils.getDateTimeSignal(packet,
+				packetDataSeek + k)); // 40-45
+		// Дата
+		// данных
 		logger.debug("Время координат : " + dasnDatetime);
 		k = 46;
-		dasnLatitude = Double.valueOf(ModUtils.convRadianToDegree(Float.intBitsToFloat(ModUtils
-				.getIntU32(packet, packetDataSeek + k))));
+		dasnLatitude = Double
+				.valueOf(ModUtils.convRadianToDegree(Float
+						.intBitsToFloat(ModUtils.getIntU32(packet,
+								packetDataSeek + k))));
 		logger.debug("Широта : " + dasnLatitude);
 		k = 50;
-		dasnLongitude = Double.valueOf(ModUtils
-				.convRadianToDegree(Float.intBitsToFloat(ModUtils.getIntU32(
-						packet, packetDataSeek + k))));
+		dasnLongitude = Double
+				.valueOf(ModUtils.convRadianToDegree(Float
+						.intBitsToFloat(ModUtils.getIntU32(packet,
+								packetDataSeek + k))));
 		logger.debug("Долгота : " + dasnLongitude);
 		k = 54;
-		dasnSog = Double.valueOf(ModUtils.getIntU32(packet,
-				packetDataSeek + k));
+		dasnSog = Double
+				.valueOf(ModUtils.getIntU32(packet, packetDataSeek + k));
 		logger.debug("Скорость : " + dasnSog);
 		k = 58;
-		dasnCourse = Double.valueOf(ModUtils.getIntU16(packet, packetDataSeek + k));
+		dasnCourse = Double.valueOf(ModUtils.getIntU16(packet, packetDataSeek
+				+ k));
 		logger.debug("Курс : " + dasnCourse);
 	}
 
@@ -561,6 +633,11 @@ public class ModSignal extends Terminal {
 			dataIndexBytes[i] = packet[i + 2];
 		}
 		dataIndex = ModUtils.getIntU32(dataIndexBytes);
+	}
+
+	private void parsePacketF6() throws ParseException {
+		logger.debug("Парсим F6");
+		parsePacketF5();
 	}
 
 	private int getFormatType() {
@@ -575,13 +652,14 @@ public class ModSignal extends Terminal {
 			k++;
 		}
 		for (int i = 0; i < navClientId.length; i++) {
-			packet[k] = navClientId[i];			
+			packet[k] = navClientId[i];
 			k++;
 		}
 		for (int i = 0; i < navServerId.length; i++) {
 			packet[k] = navServerId[i];
 			k++;
 		}
+
 		int cmdLength = cmd.length();
 		packet[k] = (byte) cmdLength & 0xff;
 		k++;
@@ -606,11 +684,8 @@ public class ModSignal extends Terminal {
 	}
 
 	private void parseIMEI() {
-		dasnUid = "";
-		for (int i = PACKET_HANDSHAKE_LENGTH; i < packetSize; i++) { // первый символ ;
-			dasnUid = dasnUid + (char) packet[i];
-		}
-		logger.debug("UID блока : " + dasnUid);
+		uid = String.valueOf(ModUtils.getIntByte(navClientId));
+		logger.debug("UID блока : " + uid);
 	}
 
 	private void parseHeader() {
@@ -671,6 +746,7 @@ public class ModSignal extends Terminal {
 	}
 
 	private void writeData() throws ParseException {
+		this.dasnUid = uid;
 		// Сохраним в БД данные
 		dasnValues.put("GL", String.valueOf(navSatellitesType));
 		dasnValues.put("ACC1", String.valueOf(navAcc1));
@@ -678,6 +754,9 @@ public class ModSignal extends Terminal {
 		dasnValues.put("DI1", String.valueOf(navDigit1));
 		dasnValues.put("DI2", String.valueOf(navDigit2));
 		dasnValues.put("PW", String.valueOf(navPowerReserv));
+		dasnValues.put("LLS1", String.valueOf(navLls1));
+		dasnValues.put("LLS2", String.valueOf(navLls2));
+		dasnValues.put("LLS3", String.valueOf(navLls3));
 
 		dataSensor.setDasnDatetime(dasnDatetime);
 		dataSensor.setDasnUid(dasnUid);

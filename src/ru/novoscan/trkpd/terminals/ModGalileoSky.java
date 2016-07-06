@@ -61,7 +61,7 @@ public class ModGalileoSky extends Terminal {
 	public ModGalileoSky(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws IOException {
-
+		this.setDasnType(conf.getModType());
 		ModGalileoSky.pgcon = pgcon;
 		iDsLocal = iDs;
 		logger.debug("Read streems..");

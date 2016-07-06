@@ -577,7 +577,7 @@ public class ModNovacom extends Terminal {
 	public ModNovacom(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
-
+		this.setDasnType(conf.getModType());
 		String data = "";
 		int cread;
 		// Получение от устройства CIO;

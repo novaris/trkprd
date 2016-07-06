@@ -74,8 +74,8 @@ public class ModGs extends Terminal {
 	public ModGs(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
+		this.setDasnType(conf.getModType());
 		this.maxPacketSize = conf.getMaxSize();
-
 		int cread;
 		char data;
 		String slog = "";

@@ -59,9 +59,9 @@ public class ModMarker extends Terminal {
 	public ModMarker(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, NumberFormatException, IOException {
+		this.setDasnType(conf.getModType());
 		logger.debug("Read streems..");
 		maxPacketSize = conf.getMaxSize();
-
 		int cread;
 		String slog = "";
 		packetSize = 0;

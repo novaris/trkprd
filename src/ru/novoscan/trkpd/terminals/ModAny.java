@@ -39,6 +39,7 @@ public class ModAny extends Terminal {
 	public ModAny(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws IOException {
+		this.setDasnType(conf.getModType());
 		int cread;
 		char data;
 		String slog = "";

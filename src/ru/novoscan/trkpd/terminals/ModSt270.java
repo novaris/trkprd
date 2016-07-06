@@ -77,8 +77,8 @@ public class ModSt270 extends Terminal {
 	public ModSt270(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
+		this.setDasnType(conf.getModType());
 		maxPacketSize = conf.getMaxSize();
-
 		int cread;
 		String slog = "";
 		packetSize = 0;

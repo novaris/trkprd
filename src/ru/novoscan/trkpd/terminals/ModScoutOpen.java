@@ -46,6 +46,7 @@ public class ModScoutOpen extends Terminal {
 	public ModScoutOpen(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws IOException, ParseException {
+		this.setDasnType(conf.getModType());
 		this.pgcon = pgcon;
 		this.oDs = oDs;
 		iDsLocal = iDs;

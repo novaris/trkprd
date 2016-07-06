@@ -48,6 +48,10 @@ public class Terminal implements ModConstats  {
 	
 	protected HashMap<String, String> dasnValues = new HashMap<>();
 	
+	protected void setDasnType(int dasnType) {
+		dataSensor.setDasnType((long) dasnType);
+	}
+	
 	protected void clear() {
 		dasnPacketType = null;
 		dasnUid = null;

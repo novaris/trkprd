@@ -52,14 +52,12 @@ public class ModGnsMinitrack extends Terminal {
 	public ModGnsMinitrack(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
+		this.setDasnType(conf.getModType());
 		maxPacketSize = conf.getMaxSize();
-
 		String data = "";
 		int cread;
-
 		// Получение от устройства CIO;
 		readbytes = 0;
-
 		while ((cread = console.read()) != -1) {
 			readbytes = readbytes + 1;
 			logger.debug("Byte [" + readbytes + "] : " + (char) cread);

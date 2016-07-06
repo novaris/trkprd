@@ -32,6 +32,7 @@ public class ModAzimut extends Terminal {
 
 	public ModAzimut(DatagramPacket dataPacket, DatagramSocket clientSocket,
 			ModConfig conf, TrackPgUtils pgcon) {
+		this.setDasnType(conf.getModType());
 		logger.debug("Чтение потока..");
 		conf.getMaxSize();
 		// packetData = new byte[maxPacketSize];

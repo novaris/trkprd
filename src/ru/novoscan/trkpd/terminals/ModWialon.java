@@ -154,7 +154,8 @@ public class ModWialon extends Terminal {
 
 	public ModWialon(DatagramPacket dataPacket, DatagramSocket clientSocket,
 			ModConfig conf, TrackPgUtils pgcon) throws IOException {
-		this.conf = conf;
+		this.setDasnType(conf.getModType());
+		this.conf = conf;		
 		this.pgcon = pgcon;
 		this.dataPacket = dataPacket;
 		this.clientSocket = clientSocket;
@@ -172,6 +173,7 @@ public class ModWialon extends Terminal {
 	public ModWialon(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader inputStreamReader, ModConfig conf,
 			TrackPgUtils pgcon) throws IOException {
+		this.setDasnType(conf.getModType());
 		this.conf = conf;
 		this.pgcon = pgcon;
 		this.oDs = oDs;
@@ -462,7 +464,7 @@ public class ModWialon extends Terminal {
 			// Ответ блоку
 			try {
 				pgcon.addDataSensor();
-				logger.debug("Writing Database : " + dasnUid);
+				logger.debug("Writing Database : " + uid);
 			} catch (SQLException e) {
 				logger.warn("Error Writing Database : " + e.getMessage());
 			}

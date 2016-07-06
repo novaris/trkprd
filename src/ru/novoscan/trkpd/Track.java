@@ -12,6 +12,8 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
 import ru.novoscan.trkpd.resources.ModConstats.SERVER;
+import ru.novoscan.trkpd.snmp.TrackSnmpAgent;
+import ru.novoscan.trkpd.snmp.TrackSnmpInfo;
 import ru.novoscan.trkpd.utils.ModConfig;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
@@ -21,52 +23,82 @@ import ru.novoscan.trkpd.utils.TrackPgUtils;
  */
 public class Track {
 
-	static private String version = "1.3";
-
 	static Logger logger = Logger.getLogger(Track.class);
 
 	static private final StringBuffer sb = new StringBuffer();
 
 	static ModConfig config = new ModConfig();
 
+	private static TrackSnmpAgent trackSnmpAgent;
+
+	private static TrackSnmpInfo trackSnmpInfo;
+
 	/**
 	 * @param args
-	 * @throws IOException 
-	 * @throws SQLException 
-	 * @throws ClassNotFoundException 
+	 * @throws IOException
+	 * @throws SQLException
+	 * @throws ClassNotFoundException
 	 */
-	public static void main(String arg[]) throws IOException, ClassNotFoundException, SQLException {
+	public static void main(String arg[]) throws IOException,
+			ClassNotFoundException, SQLException {
 		parse(arg);
 		BasicConfigurator.configure();
 		logger.debug("Обработка конфигурационного файла.");
 		config.init();
 		while (true) {
-				sb.setLength(0);
-				sb.append("Запуск сервера сбора данных ")
-						.append(config.getServerType())
-						.append(" Track Server ").append(" Версия сервера : ")
-						.append(version);
-				logger.info(sb);
-				parse(arg);
-				sb.setLength(0);
-				sb.append("Подключение к базе данных Postgresql : ")
-						.append(config.getPgUrl());
-				TrackPgUtils pgconn = new TrackPgUtils(config);
-				sb.append("\r\nПодключение выполнено.");
-				logger.info(sb);
-				TrackServer trackServer;
-				sb.setLength(0);
-				sb.append("Протокол сервера : ").append(config.getServerType());
-				logger.info(sb);
-				if (config.getServerType().equalsIgnoreCase(SERVER.UDP.toString())) {
-					trackServer = new TrackServerUdp(config,pgconn);
-				} else if (config.getServerType().equalsIgnoreCase(SERVER.TCP.toString())) {
-					trackServer = new TrackServerTcp(config,pgconn);
-				} else {
-					throw new RuntimeErrorException(new Error("Error Server Type"),
-							"Неверный протокол : "+config.getServerType());
-				}
-				trackServer.run();
+			sb.setLength(0);
+			sb.append("Запуск сервера сбора данных ")
+					.append(config.getServerType())
+					.append(" Сервер Novoscan Track ")
+					.append(" Версия сервера : ")
+					.append(TrackVersion.getVersion())
+					.append(" Сборка : " + TrackVersion.getSvnVersion())
+					.append(" Дата : " + TrackVersion.getBuildDate());
+			logger.info(sb);
+			parse(arg);
+			sb.setLength(0);
+			sb.append("Подключение к базе данных Postgresql : ").append(
+					config.getPgUrl());
+			TrackPgUtils pgconn = new TrackPgUtils(config);
+			sb.append("\r\nПодключение выполнено.");
+			logger.info(sb);
+			TrackServer trackServer;
+			sb.setLength(0);
+			sb.append("Протокол сервера : ").append(config.getServerType());
+			logger.info(sb);
+			runSnmpServer();
+			if (config.getServerType().equalsIgnoreCase(SERVER.UDP.toString())) {
+				trackServer = new TrackServerUdp(config, pgconn);
+			} else if (config.getServerType().equalsIgnoreCase(
+					SERVER.TCP.toString())) {
+				trackServer = new TrackServerTcp(config, pgconn);
+			} else {
+				throw new RuntimeErrorException(new Error("Error Server Type"),
+						"Неверный протокол : " + config.getServerType());
+			}
+			trackServer.run();
+		}
+	}
+
+	private static void runSnmpServer() {
+		trackSnmpInfo = new TrackSnmpInfo("Novaris Track Server", config);
+		trackSnmpInfo.setStartTime(System.currentTimeMillis());
+		trackSnmpAgent = new TrackSnmpAgent(config.getSnmpPort(),
+				config.getSnmpCommunity(), trackSnmpInfo);
+
+		while (true) {
+			if (trackSnmpAgent.isSocketCreated()) {
+				break;
+			}
+			if (trackSnmpAgent.isSocketException()) {
+				throw new RuntimeErrorException(new Error("Error Server Type"),
+						"Приложение SNMP Novaris Track Server уже запущено на этом порту : "
+								+ config.getSnmpPort());
+			}
+			try {
+				Thread.sleep(10);
+			} catch (InterruptedException ex) {
+			}
 		}
 	}
 
@@ -98,7 +130,7 @@ public class Track {
 		}
 		if (usage)
 			logger.warn("Использование : [-vd] [-f <имя файла конфигурации>]");
-		else 
+		else
 			logger.debug("Параметры запуска корректны.");
 	}
 

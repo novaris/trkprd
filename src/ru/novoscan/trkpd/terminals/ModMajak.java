@@ -54,6 +54,7 @@ public class ModMajak extends Terminal {
 	public ModMajak(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
+		this.setDasnType(conf.getModType());
 		int cread;
 		logger.debug("Read data..");
 		packet = new int[packetDataLength]; // пакет с нулевого считается

@@ -44,6 +44,7 @@ public class ModXml extends Terminal {
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
 		String slog = "";
+		this.setDasnType(conf.getModType());
 		BufferedReader binstream = new BufferedReader(
 				new InputStreamReader(iDs));
 		PrintWriter boutstream = new PrintWriter(oDs, true);

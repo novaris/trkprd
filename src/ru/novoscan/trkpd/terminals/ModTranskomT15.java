@@ -64,6 +64,7 @@ public class ModTranskomT15 extends Terminal {
 	public ModTranskomT15(DatagramPacket dataPacket,
 			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException {
+		this.setDasnType(conf.getModType());
 		data = "";
 		dataByte = dataPacket.getData();
 		for (int i = 0; i < dataPacket.getLength(); i++) {

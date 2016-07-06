@@ -79,6 +79,7 @@ public class ModEgts extends Terminal {
 	public ModEgts(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws IOException {
+		this.setDasnType(conf.getModType());
 		this.pgcon = pgcon;
 		this.oDs = oDs;
 		logger.debug("Read streems..");

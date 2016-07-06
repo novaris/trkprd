@@ -16,7 +16,7 @@ public interface ModConstats {
 
 	public final static int TERM_TYPE_ST270 = 301;
 
-	public final static int TERM_TYPE_SIGNAL_S21 = 302;
+	public final static int TERM_TYPE_SIGNAL = 302;
 
 	public final static int TERM_TYPE_MARKER = 303;
 

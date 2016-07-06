@@ -41,6 +41,7 @@ public class ModGelix extends Terminal {
 	public ModGelix(DataInputStream iDs, DataOutputStream oDs,
 			BufferedReader console, ModConfig conf, TrackPgUtils pgcon)
 			throws IOException {
+		this.setDasnType(conf.getModType());
 		String request;
 		request = console.readLine();
 		if (request != null) {

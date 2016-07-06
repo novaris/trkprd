@@ -76,6 +76,7 @@ public class ModUtp5 extends Terminal {
 	public ModUtp5(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
+		this.setDasnType(conf.getModType());
 		int cread;
 		packetLength = packetDataLength;
 		packet = new int[packetDataLength * 2]; // пакет с нулевого считается

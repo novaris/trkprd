@@ -77,6 +77,7 @@ public class ModNavixyM7 extends Terminal {
 	public ModNavixyM7(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
+		this.setDasnType(conf.getModType());
 		this.pgcon = pgcon;
 		dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
 		maxPacketSize = conf.getMaxSize();

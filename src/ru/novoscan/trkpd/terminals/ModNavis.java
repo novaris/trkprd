@@ -76,6 +76,7 @@ public class ModNavis extends Terminal {
 	public ModNavis(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader console, ModConfig conf, TrackPgUtils pgcon)
 			throws ParseException, IOException {
+		this.setDasnType(conf.getModType());
 		dfImei.setMaximumIntegerDigits(15);
 		dfImei.setMinimumIntegerDigits(15);
 		dfImei.setGroupingSize(15);

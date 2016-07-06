@@ -430,7 +430,11 @@ public class TrackPgUtils implements ModConstats {
 	public void connect() throws SQLException {
 		this.db = this.pgds.getConnection();
 	}
-
+	
+	public PGPoolingDataSource getPgds() {
+		return this.pgds;
+	}
+	
 	public void setDataSensorValues(DataSensor dataSensor) {
 		this.dataSensor = dataSensor;
 	}

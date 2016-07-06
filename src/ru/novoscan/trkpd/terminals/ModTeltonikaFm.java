@@ -64,6 +64,7 @@ public class ModTeltonikaFm extends Terminal {
 	public ModTeltonikaFm(DatagramPacket dataPacket,
 			DatagramSocket clientSocket, ModConfig conf, TrackPgUtils pgcon)
 			throws IOException {
+		this.setDasnType(conf.getModType());
 		this.pgcon = pgcon;
 		this.dataPacket = dataPacket;
 		this.clientSocket = clientSocket;

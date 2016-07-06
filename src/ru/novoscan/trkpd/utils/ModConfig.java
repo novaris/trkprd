@@ -10,12 +10,18 @@ import java.util.Properties;
 
 import org.apache.log4j.Logger;
 
+import ru.novoscan.trkpd.resources.ModConstats.SERVER;
+
 public class ModConfig {
 	static Logger logger = Logger.getLogger(ModConfig.class);
 
-	private String configName = "trkprd.conf";
+	private String configName;
 
 	private String modName;
+
+	private String snmpCommunity;
+
+	private int snmpPort;
 
 	private static int pgMaxConn;
 
@@ -59,7 +65,10 @@ public class ModConfig {
 
 	private static int readInterval;
 
+	private Byte defaultValue = 0;
+
 	public ModConfig() {
+		configName = "trkprd.conf";
 	}
 
 	public void init() {
@@ -69,31 +78,28 @@ public class ModConfig {
 			this.modName = configFile.getProperty("ModuleName");
 			serverPort = Integer.parseInt(configFile.getProperty("Port"));
 			serverHost = configFile.getProperty("Host");
-			clientTimeout = Integer.parseInt(configFile
-					.getProperty("ClientTimeout"));
+			clientTimeout = getIntProp(configFile, "ClientTimeout", 3600);
 			maxConn = Integer.parseInt(configFile
 					.getProperty("ClientConnection"));
 			modType = Integer.parseInt(configFile.getProperty("TypeID"));
 			// Подключение postgres
-			pgDatabaseName = configFile.getProperty("DatabaseName");
-			pgHost = configFile.getProperty("DatabaseHost");
+			pgDatabaseName = getStringProp(configFile, "DatabaseName",
+					"postgres");
+			pgHost = getStringProp(configFile, "DatabaseHost", "127.0.0.1");
 			pgUrl = "jdbc:postgresql://" + pgHost + "/" + pgDatabaseName;
-			pgUser = configFile.getProperty("DatabaseUser");
-			pgPasswd = configFile.getProperty("DatabasePasswd");
-			pgPort = Integer.parseInt(configFile.getProperty("DatabasePort"));
-			pgInitConn = Integer.parseInt(configFile.getProperty("DatabaseInitConnection"));
-			pgMaxConn = Integer.parseInt(configFile.getProperty("DatabaseMaxConnection"));
-			maxPacketSize = Integer.parseInt(configFile
-					.getProperty("MaxPacketSize"));
-			begChar = Byte.parseByte(configFile.getProperty("BegChar"));
-			endChar = Byte.parseByte(configFile.getProperty("EndChar"));
-			readInterval = Integer.parseInt(configFile
-					.getProperty("ReadInterval"));
-			if ((readInterval < 1000) || (readInterval > 10000000)) {
-				readInterval = 1000;
-			}
-			serverType = configFile.getProperty("ServerType");
-
+			pgUser = getStringProp(configFile, "DatabaseUser", "owner_track");
+			pgPasswd = getStringProp(configFile, "DatabasePasswd", "");
+			pgPort = getIntProp(configFile, "DatabasePort", 5432);
+			pgInitConn = getIntProp(configFile, "DatabaseInitConnection", 1);
+			pgMaxConn = getIntProp(configFile, "DatabaseMaxConnection", 10);
+			maxPacketSize = getIntProp(configFile, "MaxPacketSize", 65535);
+			begChar = getByteProp(configFile, "BegChar", defaultValue);
+			endChar = getByteProp(configFile, "EndChar", defaultValue);
+			readInterval = getIntProp(configFile, "ReadInterval", 1000);
+			serverType = getStringProp(configFile, "ServerType",
+					SERVER.TCP.toString());
+			snmpCommunity = getStringProp(configFile, "SnmpCommunity", "public");
+			snmpPort = getIntProp(configFile, "SnmpPort", 1161);
 		} catch (InvalidPropertiesFormatException e) {
 			logger.fatal("Неверный XML в файле : " + configName + "\n"
 					+ e.getMessage());
@@ -197,9 +203,78 @@ public class ModConfig {
 		return pgInitConn;
 	}
 
-
 	public int getPgMaxConn() {
 		return pgMaxConn;
+	}
+
+	private int getIntProp(Properties properties, String optionName,
+			int defaultValue) {
+		String value;
+		try {
+			value = properties.getProperty(optionName);
+		} catch (NullPointerException e) {
+			value = null;
+			logger.warn("Устанавливается значение по умолчанию ("
+					+ defaultValue + ") для параметра : " + optionName);
+		}
+		if (value == null) {
+			return defaultValue;
+		}
+		try {
+			int intValue = Integer.parseInt(value);
+			return intValue;
+		} catch (NumberFormatException e) {
+			return defaultValue;
+		}
+	}
+
+	private String getStringProp(Properties properties, String optionName,
+			String defaultValue) {
+		String value;
+		try {
+			value = properties.getProperty(optionName);
+		} catch (NullPointerException e) {
+			value = null;
+			logger.warn("Устанавливается значение по умолчанию ("
+					+ defaultValue + ") для параметра : " + optionName);
+		}
+		if (value == null) {
+			return defaultValue;
+		}
+		try {
+			return value;
+		} catch (NumberFormatException e) {
+			return defaultValue;
+		}
+	}
+
+	private byte getByteProp(Properties properties, String optionName,
+			byte defaultValue) {
+		String value;
+		try {
+			value = properties.getProperty(optionName);
+		} catch (NullPointerException e) {
+			value = null;
+			logger.warn("Устанавливается значение по умолчанию ("
+					+ defaultValue + ") для параметра : " + optionName);
+		}
+		if (value == null) {
+			return defaultValue;
+		}
+		try {
+			byte byteValue = Byte.parseByte(value);
+			return byteValue;
+		} catch (NumberFormatException e) {
+			return defaultValue;
+		}
+	}
+
+	public String getSnmpCommunity() {
+		return snmpCommunity;
+	}
+
+	public int getSnmpPort() {
+		return snmpPort;
 	}
 
 }

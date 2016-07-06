@@ -109,6 +109,7 @@ public class ModScout  extends Terminal {
 	public ModScout(DataInputStream iDs, DataOutputStream oDs,
 			InputStreamReader unbconsole, ModConfig conf, TrackPgUtils pgcon)
 			throws IOException {
+		this.setDasnType(conf.getModType());
 		int cread;
 		String slog = "";
 		packet = new int[conf.getMaxSize()];
