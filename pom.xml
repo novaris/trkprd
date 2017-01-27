@@ -139,11 +139,9 @@
 			<version>1.8.3</version>
 		</dependency>
 		<dependency>
-			<groupId>com.jpragma.snmp</groupId>
+			<groupId>Spring-SNMP</groupId>
 			<artifactId>spring-snmp</artifactId>
 			<version>alpha1</version>
-			<scope>system</scope>
-			<systemPath>${project.basedir}/libs/spring-snmp-alpha1.jar</systemPath>
 		</dependency>
 	</dependencies>
 	<scm>

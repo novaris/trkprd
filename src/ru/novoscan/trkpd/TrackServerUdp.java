@@ -57,7 +57,7 @@ public class TrackServerUdp implements TrackServer {
 		private DatagramPacket dataPacket;
 		public UDPReader() {
 			try {
-				dataPacket = new DatagramPacket(new byte[1024], 1024);
+				dataPacket = new DatagramPacket(new byte[65507], 65507);
 				listenSocket.receive(dataPacket);
 				this.start();
 			} catch (IOException e) {
@@ -99,6 +99,9 @@ public class TrackServerUdp implements TrackServer {
 				e.printStackTrace();
 			} catch (IOException e) {
 				logger.error("Соединение закрыто : " + e.getMessage());
+				e.printStackTrace();
+			} catch (Exception e) {
+				logger.error("Ошибка : " + e.getMessage());
 				e.printStackTrace();
 			} finally {
 				try {

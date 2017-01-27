@@ -149,13 +149,13 @@ public class ModWialon extends Terminal {
 	private Matcher pm;
 
 	private String uid;
-	
+
 	private Calendar time = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
 
 	public ModWialon(DatagramPacket dataPacket, DatagramSocket clientSocket,
 			ModConfig conf, TrackPgUtils pgcon) throws IOException {
 		this.setDasnType(conf.getModType());
-		this.conf = conf;		
+		this.conf = conf;
 		this.pgcon = pgcon;
 		this.dataPacket = dataPacket;
 		this.clientSocket = clientSocket;
@@ -380,8 +380,17 @@ public class ModWialon extends Terminal {
 		// Longitude
 		dasnLongitude = Double.parseDouble(mp.group(index++));
 		dasnLongitude += Double.parseDouble(mp.group(index++)) / 60;
-		if (mp.group(index++).compareTo("W") == 0)
-			dasnLongitude = -dasnLongitude;
+
+		if ((mp.group(index++).compareTo("W") == 0)) {	
+			if (conf.isIgnoreWestLongitude()) {
+				/*
+				 * В связи с багом в терминале TD Online - для северного полушария
+				 */		
+				dasnLongitude = Math.abs(dasnLongitude);
+			} else {
+				dasnLongitude = -Math.abs(dasnLongitude);
+			}
+		}
 		dataSensor.setDasnLongitude(dasnLongitude);
 		// Speed
 		tmp = mp.group(index++);

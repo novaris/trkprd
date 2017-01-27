@@ -67,6 +67,8 @@ public class ModConfig {
 
 	private Byte defaultValue = 0;
 
+	private boolean ignoreWestLongitude = false;
+
 	public ModConfig() {
 		configName = "trkprd.conf";
 	}
@@ -99,6 +101,7 @@ public class ModConfig {
 			serverType = getStringProp(configFile, "ServerType",
 					SERVER.TCP.toString());
 			snmpCommunity = getStringProp(configFile, "SnmpCommunity", "public");
+			ignoreWestLongitude = getBooleanProp(configFile, "IgnoreWestLongitude", false);
 			snmpPort = getIntProp(configFile, "SnmpPort", 1161);
 		} catch (InvalidPropertiesFormatException e) {
 			logger.fatal("Неверный XML в файле : " + configName + "\n"
@@ -111,6 +114,26 @@ public class ModConfig {
 			logger.fatal("Ошибка чтения файла :  " + configName + "\n"
 					+ e.getMessage());
 			System.exit(1);
+		}
+	}
+
+	private boolean getBooleanProp(Properties properties, String optionName,
+			boolean defaultValue) {
+		String value;
+		try {
+			value = properties.getProperty(optionName);
+		} catch (NullPointerException e) {
+			value = null;
+			logger.warn("Устанавливается значение по умолчанию ("
+					+ defaultValue + ") для параметра : " + optionName);
+		}
+		if (value == null) {
+			return defaultValue;
+		}
+		if(value.equalsIgnoreCase("true")) {
+			return true;
+		} else {
+			return false;
 		}
 	}
 
@@ -275,6 +298,11 @@ public class ModConfig {
 
 	public int getSnmpPort() {
 		return snmpPort;
+	}
+
+	public boolean isIgnoreWestLongitude() {
+		// TODO Auto-generated method stub
+		return ignoreWestLongitude ;
 	}
 
 }
