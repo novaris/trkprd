@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.sql.SQLException;
 import java.text.ParseException;
 
 import org.apache.log4j.Logger;
@@ -41,6 +40,8 @@ public class TrackServerTcp implements TrackServer {
 
 	private TrackPgUtils pgConnect;
 
+	private ServerSocket listener;
+
 	public TrackServerTcp(ModConfig config, TrackPgUtils pgConnect) {
 		this.pgConnect = pgConnect;
 		this.config = config;
@@ -65,23 +66,12 @@ public class TrackServerTcp implements TrackServer {
 	public void run() throws IOException {
 		logger.debug("Запуск TCP сервера : " + config.getHost() + ":"
 				+ config.getPort());
-		ServerSocket listener = new ServerSocket(config.getPort(),
+		listener = new ServerSocket(config.getPort(),
 				config.getMaxConn(), config.getHost());
 		int clientNumber = 0;
 		logger.debug("Сервер запущен.");
-		try {
-			while (true) {
-				new TCPReader(listener.accept(), clientNumber++).start();
-			}
-		} finally {
-			try {
-				pgConnect.close();
-			} catch (SQLException e) {
-				logger.error("Ошибка закрытия соединения с БД : "
-						+ e.getLocalizedMessage());
-			}
-			listener.close();
-			logger.debug("Соединение закрыто");
+		while (true) {
+			new TCPReader(listener.accept(), clientNumber++).start();
 		}
 
 	}
@@ -92,11 +82,14 @@ public class TrackServerTcp implements TrackServer {
 
 		private int clientNumber;
 
+		private String clienAddress;
+
 		public TCPReader(Socket clientSocket, int clientNumber) {
 			this.clientSocket = clientSocket;
 			this.clientNumber = clientNumber;
+			this.clienAddress = clientSocket.getRemoteSocketAddress().toString();
 			logger.info("Подключение клиента " + this.clientNumber + " : "
-					+ clientSocket.getRemoteSocketAddress().toString());
+					+ clienAddress);
 
 		}
 
@@ -113,7 +106,6 @@ public class TrackServerTcp implements TrackServer {
 				InputStreamReader inputStreamReader = new InputStreamReader(
 						dataInputStream);
 
-				pgConnect.connect();
 				int modType = config.getModType();
 				logger.debug("Тип модуля : " + config.getModType());
 				if (modType == TERM_TYPE_ANY) {
@@ -122,16 +114,16 @@ public class TrackServerTcp implements TrackServer {
 					readBytes = mod.getReadBytes();
 				} else if (modType == TERM_TYPE_GELIX) {
 					ModGelix mod = new ModGelix(dataInputStream,
-							dataOutputStream, bufferedReader, config, pgConnect);
+							dataOutputStream, bufferedReader, config,
+							pgConnect);
 					readBytes = mod.getReadBytes();
 				} else if (modType == TERM_TYPE_GS) {
 					ModGs mod = new ModGs(dataInputStream, dataOutputStream,
 							inputStreamReader, config, pgConnect);
 					readBytes = mod.getReadBytes();
 				} else if (modType == TERM_TYPE_UTP5) {
-					ModUtp5 mod = new ModUtp5(dataInputStream,
-							dataOutputStream, inputStreamReader, config,
-							pgConnect);
+					ModUtp5 mod = new ModUtp5(dataInputStream, dataOutputStream,
+							inputStreamReader, config, pgConnect);
 					readBytes = mod.getReadBytes();
 				} else if (modType == TERM_TYPE_NOVACOM) {
 					ModNovacom mod = new ModNovacom(dataInputStream,
@@ -193,9 +185,8 @@ public class TrackServerTcp implements TrackServer {
 							pgConnect);
 					readBytes = mod.getReadBytes();
 				} else if (modType == TERM_TYPE_EGTS) {
-					ModEgts mod = new ModEgts(dataInputStream,
-							dataOutputStream, inputStreamReader, config,
-							pgConnect);
+					ModEgts mod = new ModEgts(dataInputStream, dataOutputStream,
+							inputStreamReader, config, pgConnect);
 					readBytes = mod.getReadBytes();
 				} else if (modType == TERM_TYPE_WIALON) {
 					ModWialon mod = new ModWialon(dataInputStream,
@@ -207,24 +198,16 @@ public class TrackServerTcp implements TrackServer {
 							modType);
 				}
 				logger.info("Получено байт : " + readBytes);
-				pgConnect.close();
 			} catch (ParseException e) {
-				logger.error("Неподдерживаемый тип модуля : "
-						+ e.getErrorOffset());
-			} catch (SQLException e) {
-				logger.error("Ошибка БД : " + e.getMessage());
-				e.printStackTrace();
+				logger.error(
+						"Неподдерживаемый тип модуля : " + e.getErrorOffset());
 			} catch (IOException e) {
-				logger.error("Соединение закрыто : " + e.getMessage());
+				logger.info("Соединение закрыто : " + clienAddress);
+				e.printStackTrace();
+			} catch (Exception e) {
+				logger.error("Ошибка : " + e.getMessage());
 				e.printStackTrace();
 			} finally {
-				try {
-					pgConnect.close();
-					logger.info("Соединение с базой закрыто");
-				} catch (SQLException e) {
-					logger.error("Ошибка закрытия соединения с БД : "
-							+ e.getLocalizedMessage());
-				}
 			}
 
 		}

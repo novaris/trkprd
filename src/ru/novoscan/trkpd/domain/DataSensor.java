@@ -54,7 +54,7 @@ public class DataSensor {
 	private Long dasnType = 1L;
 
 	private String dasnXml;
-	
+
 	private HashMap<String, String> dasnValues = new HashMap<String, String>();
 
 	private Timestamp dasnTimestamp;
@@ -130,7 +130,7 @@ public class DataSensor {
 		this.dasnDatetime = dasnDatetime;
 		this.dasnTimestamp = new java.sql.Timestamp(dasnDatetime.getTime());
 	}
-	
+
 	public Timestamp getDasnTimestamp() {
 		return dasnTimestamp;
 	}
@@ -271,7 +271,6 @@ public class DataSensor {
 		this.dasnXml = dasnXml;
 	}
 
-
 	public void setDasnSpsnId(Long dasnSpsnId) {
 		this.dasnSpsnId = dasnSpsnId;
 	}
@@ -290,7 +289,8 @@ public class DataSensor {
 
 	public boolean isValid() {
 		if ((this.dasnUid != null) && (this.dasnLatitude != null)
-				&& (this.dasnLongitude != null) && (this.dasnDatetime != null) && (this.dasnType != null)) {
+				&& (this.dasnLongitude != null) && (this.dasnDatetime != null)
+				&& (this.dasnType != null)) {
 			return true;
 		}
 		return false;
@@ -338,9 +338,36 @@ public class DataSensor {
 		this.dasnType = 1L;
 
 		this.dasnXml = null;
-		
+
 		this.dasnValues.clear();
 
+	}
+
+	@Override
+	public String toString() {
+		return  "dasnId=" + dasnId + 
+				" dasnSpsnId=" + dasnSpsnId + 
+				" dasnUid=" + dasnUid + 
+				" dasnDatetime=" + dasnDatetime + 
+				" dasnLatitude=" + dasnLatitude + 
+				" dasnLongitude=" + dasnLongitude + 
+				" dasnStatus=" + dasnStatus + 
+				" dasnSatUsed=" + dasnSatUsed + 
+				" dasnZoneAlarm=" + dasnZoneAlarm + 
+				" dasnMacroId="	+ dasnMacroId + 
+				" dasnMacroSrc=" + dasnMacroSrc	+ 
+				" dasnSog=" + dasnSog +
+				" dasnCourse=" + dasnCourse +
+				" dasnHdop=" + dasnHdop +
+				" dasnHgeo=" + dasnHgeo +
+				" dasnHmet=" + dasnHmet +
+				" dasnGpio=" + dasnGpio +
+				" dasnAdc=" + dasnAdc +
+				" dasnTemp=" + dasnTemp +
+				" dasnType=" + dasnType +
+				" dasnXml=" + dasnXml + 
+				" dasnXml=" + dasnXml.toString() + 
+				" dasnXml=" + dasnXml;
 	}
 
 }

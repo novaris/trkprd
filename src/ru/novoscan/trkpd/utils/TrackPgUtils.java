@@ -17,19 +17,11 @@ public class TrackPgUtils implements ModConstats {
 
 	private static final Logger logger = Logger.getLogger(TrackPgUtils.class);
 
-	private Connection db; // A connection to the database
-
-	private ResultSet resultSet;
-
 	private String[] commandStr;
 
 	private long[] cmdId;
 
 	private static final int maxCommand = 100;
-
-	private ResultSet result;
-
-	private PreparedStatement ps;
 
 	private String pgDatabaseName;
 
@@ -86,6 +78,7 @@ public class TrackPgUtils implements ModConstats {
 	}
 
 	public void addDataSensor() throws SQLException {
+		Connection db = pgds.getConnection();
 		if ((dataSensor != null) && (dataSensor.getDasnValues().size() > 0)) {
 			StringBuffer stringBuffer = new StringBuffer();
 			for (Entry<String, String> entry : dataSensor.getDasnValues()
@@ -100,24 +93,19 @@ public class TrackPgUtils implements ModConstats {
 		}
 		if (dataSensor != null) {
 			try {
-
-				logger.debug(new StringBuffer()
-						.append("SQL Statment : ")
-						.append("SELECT ")
-						.append("add_data_sensor('")
-						.append(dataSensor.getDasnUid())
-						.append("'::varchar,")
-						.append(dataSensor.getDasnUid())
-						.append("::int8,'")
-						.append(dateFormatFull.format(dataSensor
-								.getDasnDatetime())).append("'::timestamp,")
+				logger.debug(new StringBuffer().append("SQL Statment : ")
+						.append("SELECT ").append("add_data_sensor('")
+						.append(dataSensor.getDasnUid()).append("'::varchar,")
+						.append(dataSensor.getDasnUid()).append("::int8,'")
+						.append(dateFormatFull
+								.format(dataSensor.getDasnDatetime()))
+						.append("'::timestamp,")
 						.append(dataSensor.getDasnLatitude())
 						.append("::float8,")
 						.append(dataSensor.getDasnLongitude())
 						.append("::float8,").append(dataSensor.getDasnStatus())
 						.append("::int8,").append(dataSensor.getDasnSatUsed())
-						.append("::int8,")
-						.append(dataSensor.getDasnZoneAlarm())
+						.append("::int8,").append(dataSensor.getDasnZoneAlarm())
 						.append("::int8,").append(dataSensor.getDasnMacroId())
 						.append("::int8,").append(dataSensor.getDasnMacroSrc())
 						.append("::int8,").append(dataSensor.getDasnSog())
@@ -133,44 +121,60 @@ public class TrackPgUtils implements ModConstats {
 						.append("'::text,").append("now()::timestamp,")
 						.append(dataSensor.getDasnType()).append("::int8)")
 						.toString());
-				ps = db.prepareStatement(new StringBuffer().append("SELECT ")
-						.append("add_data_sensor").append("(?::varchar")
-						// 1 идентификатор блока.
-						.append(",?::int8")
-						// 2 - идентификатор записи лога
-						.append(",?::timestamp") // 3
-													// -Дата
-													// время
-													// с
-													// таймзоной
-						.append(",?::float8") // 4 - latitude Географическая
-												// долгота
-						.append(",?::float8") // 5 - longitude Географическая
-												// широта
-						.append(",?::int8") // 6 - int4 -- Флаг состояний
-						.append(",?::int8") // 7 - int4 -- Количество спутников
-						.append(",?::int8") // 8 - int4 -- Состояние тревога зон
-											// охраны
-						.append(",?::int8") // 9 - int4 -- Номер макроса
-						.append(",?::int8") // 10 - int4 -- Код источника
-						.append(",?::float8") // 11 - float8 -- Скорость в км/ч
-						.append(",?::float8") // 12 - float8 -- Курс в градусах
-						.append(",?::float8") // 13 - float8 -- Значение HDOP
-						.append(",?::float8") // 14 - float8 -- Значение HGEO
-						.append(",?::float8") // 15 - float8 -- Значение HMET
-						.append(",?::int8") // 16 - int4 -- Состояние IO
-						.append(",?::int8") // 17 - int8 -- Состояние аналоговых
-											// входов
-						.append(",?::float8") // 18 - float8 -- Температура С
-						.append(",?::int8") // 19 - int4 -- Тип данных
-						.append(",?::text") // 20 -
-											// text
-											// Дополнтельные
-											// данные.
-						.append(",now()::timestamp") // 21 - timestamp Дата
-														// модификации
-						.append(",?::int8)") // идентификатор типа терминала
-						.toString());
+				PreparedStatement ps = db
+						.prepareStatement(new StringBuffer().append("SELECT ")
+								.append("add_data_sensor").append("(?::varchar")
+								// 1 идентификатор блока.
+								.append(",?::int8")
+								// 2 - идентификатор записи лога
+								.append(",?::timestamp") // 3
+															// -Дата
+															// время
+															// с
+															// таймзоной
+								.append(",?::float8") // 4 - latitude
+														// Географическая
+														// долгота
+								.append(",?::float8") // 5 - longitude
+														// Географическая
+														// широта
+								.append(",?::int8") // 6 - int4 -- Флаг
+													// состояний
+								.append(",?::int8") // 7 - int4 -- Количество
+													// спутников
+								.append(",?::int8") // 8 - int4 -- Состояние
+													// тревога зон
+													// охраны
+								.append(",?::int8") // 9 - int4 -- Номер макроса
+								.append(",?::int8") // 10 - int4 -- Код
+													// источника
+								.append(",?::float8") // 11 - float8 -- Скорость
+														// в км/ч
+								.append(",?::float8") // 12 - float8 -- Курс в
+														// градусах
+								.append(",?::float8") // 13 - float8 -- Значение
+														// HDOP
+								.append(",?::float8") // 14 - float8 -- Значение
+														// HGEO
+								.append(",?::float8") // 15 - float8 -- Значение
+														// HMET
+								.append(",?::int8") // 16 - int4 -- Состояние IO
+								.append(",?::int8") // 17 - int8 -- Состояние
+													// аналоговых
+													// входов
+								.append(",?::float8") // 18 - float8 --
+														// Температура С
+								.append(",?::int8") // 19 - int4 -- Тип данных
+								.append(",?::text") // 20 -
+													// text
+													// Дополнтельные
+													// данные.
+								.append(",now()::timestamp") // 21 - timestamp
+																// Дата
+																// модификации
+								.append(",?::int8)") // идентификатор типа
+														// терминала
+								.toString());
 				if (dataSensor.isValid()) {
 					ps.setString(1, String.valueOf(dataSensor.getDasnUid()));
 					ps.setLong(2, Long.parseLong(dataSensor.getDasnUid()));
@@ -244,24 +248,28 @@ public class TrackPgUtils implements ModConstats {
 					}
 					ps.setLong(19, dataSensor.getDasnType());
 					if (valuesData == null) {
-						ps.setNull(20, java.sql.Types.INTEGER);
+						ps.setNull(20, java.sql.Types.LONGVARCHAR);
 					} else {
 						ps.setString(20, valuesData);
 					}
 					ps.setLong(21, config.getModType());
 				}
-				resultSet = ps.executeQuery();
+				ResultSet resultSet = ps.executeQuery();
+				resultSet.close();
+				closeStatement(ps);
 				db.commit();
-			} catch (Exception e) {
-				closeStatement();
+				closeExecute(db);
+			} catch (SQLException e) {
+				logger.error("Error data : " + dataSensor.toString());
+				logger.error(e.getMessage());
 				e.printStackTrace();
-				logger.warn(e.getMessage());
+				closeExecute(db);
 				throw new RuntimeException(e);
 			}
 		} else {
 			logger.error("Нет данных для записи в БД!");
 		}
-		
+
 	}
 
 	public int getImeiModule(String imei) {
@@ -269,17 +277,19 @@ public class TrackPgUtils implements ModConstats {
 		if (imei.length() != IMEI_LENGTH)
 			return -3;
 		try {
-			db.prepareStatement(new StringBuffer().append("SELECT spmd_id ")
-					.append("  FROM sprv_modules ")
+			Connection db = pgds.getConnection();
+			PreparedStatement ps = db.prepareStatement(new StringBuffer()
+					.append("SELECT spmd_id ").append("  FROM sprv_modules ")
 					.append(" WHERE spmd_imei=?").toString());
 			ps.setString(1, imei);
-			resultSet = ps.executeQuery();
+			ResultSet resultSet = ps.executeQuery();
 			if (resultSet.first()) {
 				spmd = resultSet.getInt(1);
 			}
-			result.close();
-			ps.close();
+			resultSet.close();
+			closeStatement(ps);
 			db.commit();
+			closeExecute(db);
 		} catch (SQLException e) {
 			spmd = -1;
 		}
@@ -287,7 +297,9 @@ public class TrackPgUtils implements ModConstats {
 		return spmd;
 	}
 
-	public void getCommand(String navDeviceID, int modType) throws SQLException {
+	public void getCommand(String navDeviceID, int modType)
+			throws SQLException {
+		Connection db = pgds.getConnection();
 		cmdId = new long[maxCommand];
 		commandStr = new String[maxCommand];
 		int cmd_num = 0;
@@ -299,11 +311,9 @@ public class TrackPgUtils implements ModConstats {
 				.append("  FROM get_cmd_next(get_mod_id('").append(navDeviceID)
 				.append("'::varchar").append("      ,").append(modType)
 				.append("::int8))").toString());
-		PreparedStatement ps = db
-				.prepareStatement(
-						"SELECT o_qumx,o_command FROM get_cmd_next(get_mod_id(?::varchar,?::int8))",
-						ResultSet.TYPE_SCROLL_INSENSITIVE,
-						ResultSet.CONCUR_UPDATABLE);
+		PreparedStatement ps = db.prepareStatement(
+				"SELECT o_qumx,o_command FROM get_cmd_next(get_mod_id(?::varchar,?::int8))",
+				ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
 		ps.setString(1, navDeviceID);
 		ps.setInt(2, modType);
 		ResultSet command = ps.executeQuery();
@@ -313,8 +323,9 @@ public class TrackPgUtils implements ModConstats {
 			cmd_num = cmd_num + 1;
 		}
 		command.close();
-		ps.close();
+		closeStatement(ps);
 		db.commit();
+		closeExecute(db);
 	}
 
 	public long[] getCommandId() {
@@ -328,34 +339,33 @@ public class TrackPgUtils implements ModConstats {
 	public void setCommandStatus(long cmdId, String cmdStatus, String cmdInfo)
 			throws SQLException {
 		if (cmdId > 0) {
-
+			Connection db = pgds.getConnection();
 			logger.debug(new StringBuffer().append("SQL Statment : ")
 					.append("SELECT set_cmd_status(").append(cmdId)
 					.append("::int8,").append(cmdStatus).append("::varchar")
 					.append(",now()::timestamp").append(cmdInfo)
 					.append("::text)").toString());
+			PreparedStatement ps = db.prepareStatement(
+					"SELECT set_cmd_status(?::int8,?::varchar,now()::timestamp,?::text)",
+					ResultSet.TYPE_SCROLL_INSENSITIVE,
+					ResultSet.CONCUR_UPDATABLE);
 			try {
-				ps = db.prepareStatement(
-						"SELECT set_cmd_status(?::int8,?::varchar,now()::timestamp,?::text)",
-						ResultSet.TYPE_SCROLL_INSENSITIVE,
-						ResultSet.CONCUR_UPDATABLE);
 				ps.setLong(1, cmdId);
 				ps.setString(2, cmdStatus);
 				ps.setString(3, cmdInfo);
-				result = ps.executeQuery();
+				ResultSet result = ps.executeQuery();
 				logger.debug("SQL Statment executed");
 				result.close();
-				ps.close();
-				db.commit();
+				closeStatement(ps);
+				closeExecute(db);
 			} finally {
-				if (result != null)
-					result.close();
-				if (ps != null)
-					ps.close();
+					closeStatement(ps);
+					closeExecute(db);
 			}
 		} else {
-			logger.error(new StringBuffer().append(
-					"Command not getting. Describe : ").append(cmdInfo));
+			logger.error(new StringBuffer()
+					.append("Command not getting. Describe : ")
+					.append(cmdInfo));
 		}
 
 	}
@@ -392,49 +402,31 @@ public class TrackPgUtils implements ModConstats {
 		this.pgPort = pgPort;
 	}
 
-	private void closeStatement() {
+	private void closeStatement(PreparedStatement ps) {
 		try {
-			if (this.ps != null && !this.ps.isClosed()) {
-				this.ps.close();
-				this.ps = null;
+			if (ps != null && !ps.isClosed()) {
+				ps.close();
 			}
 		} catch (SQLException e) {
-			logger.error("Ошибка closeStatement: "+e.getLocalizedMessage());
+			logger.error("Ошибка closeStatement: " + e.getLocalizedMessage());
 			e.printStackTrace();
 		}
 	}
 
-	private void closeExecute() {
+	private void closeExecute(Connection db) {
 		try {
-			if (this.resultSet != null && !this.resultSet.isClosed()) {
-				resultSet.close();
-			}
-			if (this.result != null && !this.result.isClosed()) {
-				result.close();
-			}
+			db.close();
 		} catch (SQLException e) {
-			logger.error("Ошибка closeExecute: "+e.getLocalizedMessage());
+			logger.error("Ошибка closeExecute: " + e.getLocalizedMessage());
 			e.printStackTrace();
 		}
 	}
 
-	public void close() throws SQLException {
-		closeExecute();
-		//closeStatement();
-		if (this.db != null && !this.db.isClosed()) {
-			this.db.rollback();
-			this.db.close();
-		}
-	}
 
-	public void connect() throws SQLException {
-		this.db = this.pgds.getConnection();
-	}
-	
 	public PGPoolingDataSource getPgds() {
 		return this.pgds;
 	}
-	
+
 	public void setDataSensorValues(DataSensor dataSensor) {
 		this.dataSensor = dataSensor;
 	}

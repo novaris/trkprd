@@ -20,6 +20,7 @@ import org.apache.log4j.Logger;
 
 import ru.novoscan.trkpd.domain.Terminal;
 import ru.novoscan.trkpd.utils.ModConfig;
+import ru.novoscan.trkpd.utils.ModUtils;
 import ru.novoscan.trkpd.utils.TrackPgUtils;
 
 public class ModWialon extends Terminal {
@@ -66,6 +67,12 @@ public class ModWialon extends Terminal {
 	private static final Pattern PAT_PACKET_BIN = Pattern
 			.compile("(?i)#(.+)#(.+)\\r?\\n?");
 
+	private static final Pattern PAT_DATA_IPS_V2 = Pattern
+			.compile("^(.*)([\\|;]([A-Fa-f0-9]+)\\r?\\n?)");
+
+	private static final Pattern PAT_DATA_CRC = Pattern
+			.compile("^(#[A-Z]{1,2}#)(.*[\\|;])([A-Fa-f0-9]+)(\\r?)(\\n?)$");
+
 	private static final Pattern PAT_DATA_D = Pattern
 			.compile("(\\d{2})(\\d{2})(\\d{2});" + // Date (DDMMYY)
 					"(\\d{2})(\\d{2})(\\d{2});" + // Time (HHMMSS)
@@ -84,7 +91,13 @@ public class ModWialon extends Terminal {
 					"(?:" + FIELD_NA + "|(.*))" + // params
 					")?");
 
-	private static final Pattern PAT_DATA_L = Pattern.compile("(\\w+);(\\w*)");
+	/*
+	 * #L#imei;password - for 1.0 version #L#2.0;imei;password;summa - for 2.0
+	 * version
+	 */
+
+	private static final Pattern PAT_DATA_L = Pattern
+			.compile("^(2.0;)?(\\d+);([A-Za-z0-9]+);?([0-9A-Fa-f]+)?\\r?\\n?");
 
 	private static final String PACKET_L = "L";
 
@@ -152,6 +165,10 @@ public class ModWialon extends Terminal {
 
 	private Calendar time = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
 
+	private String ipsVersion = "unknown";
+
+	private String pSumm;
+
 	public ModWialon(DatagramPacket dataPacket, DatagramSocket clientSocket,
 			ModConfig conf, TrackPgUtils pgcon) throws IOException {
 		this.setDasnType(conf.getModType());
@@ -199,36 +216,44 @@ public class ModWialon extends Terminal {
 		if (conf.getServerType().equalsIgnoreCase(SERVER.UDP.toString())) {
 			for (int i = 0; i < dataPacket.getLength(); i++) {
 				packetData[i] = dataPacket.getData()[i];
-				logger.debug("Data [" + i + "] : "
-						+ Byte.toString(packetData[i]));
+				logger.debug(
+						"Data [" + i + "] : " + Byte.toString(packetData[i]));
 			}
 			if ((packetData[0] & 0xff) == 0xff) {
 				int packetLengthZip = (packetData[1] & 0xff)
 						+ ((packetData[2] & 0xff) << 8);
-				if (packetLengthZip > maxPacketSize)
+				if (packetLengthZip > maxPacketSize) {
+					logger.fatal("Неверный размер ZIP пакета.");
 					throw new RuntimeErrorException(new Error("Lenght Error"),
 							"Неверный размер пакета.");
+				}
 				byte[] packetDataZip = packetData;
 				packetLength = unzip(packetDataZip, packetLengthZip);
 			} else {
 				int i = 0;
 				while (!PAT_PACKET.matcher(packetString).matches()) {
-					if (packetLength > maxPacketSize)
-						throw new RuntimeErrorException(new Error(
-								"Lenght Error"), "Неверный размер пакета.");
+					if (packetLength > maxPacketSize) {
+						logger.fatal("Неверный размер пакета.");
+						throw new RuntimeErrorException(
+								new Error("Lenght Error"),
+								"Неверный размер пакета.");
+					}
 					packetLength++;
 					packetString.append((char) packetData[i]);
 				}
 			}
-		} else if (conf.getServerType().equalsIgnoreCase(SERVER.TCP.toString())) {
+		} else if (conf.getServerType()
+				.equalsIgnoreCase(SERVER.TCP.toString())) {
 			int i = 0;
 			packetString.setLength(0);
 			packetData[i] = (byte) readByte();
 			if (packetData[i] == 0) {
 				int packetLengthZip = readByte() + (readByte() << 8);
-				if (packetLengthZip > maxPacketSize)
+				if (packetLengthZip > maxPacketSize) {
+					logger.fatal("Неверный размер пакета (превышение).");
 					throw new RuntimeErrorException(new Error("Lenght Error"),
 							"Неверный размер пакета.");
+				}
 				byte[] packetDataZip = new byte[packetLengthZip];
 				for (int k = 0; k < packetLengthZip; k++) {
 					packetDataZip[k] = (byte) readByte();
@@ -240,16 +265,31 @@ public class ModWialon extends Terminal {
 				while (!PAT_PACKET.matcher(packetString).matches()) {
 					i++;
 					packetLength++;
-					if (packetLength > maxPacketSize)
-						throw new RuntimeErrorException(new Error(
-								"Lenght Error"), "Неверный размер пакета.");
+					if (packetLength > maxPacketSize) {
+						logger.fatal("Неверный размер пакета (превышение).");
+						throw new RuntimeErrorException(
+								new Error("Lenght Error"),
+								"Неверный размер пакета.");
+					}
 					packetData[i] = (byte) readByte();
 					packetString.append((char) packetData[i]);
 					// logger.debug("Строка : " + packetString);
 				}
 			}
 		}
-		logger.debug("Пакет данных : " + packetString);
+
+		logger.debug("Пакет данных (с контрольной суммой): " + packetString);
+		if (ipsVersion.equals("2.0")) {
+			m = PAT_DATA_IPS_V2.matcher(packetString);
+			if (m.matches()) {
+				packetLength = packetLength - m.group(2).length();
+				checkSum(packetString.toString());
+			} else {
+				logger.fatal("Неверный формат пакета для IPS v.2");
+				throw new RuntimeErrorException(new Error("Incorrect Packet"),
+						"Неверный формат пакета для IPS v.2");
+			}
+		}
 		logger.debug("Размер пакета данных : " + packetLength);
 		if (parsePacket()) {
 			sendAck();
@@ -285,11 +325,12 @@ public class ModWialon extends Terminal {
 				askPacket.append("#A").append(PACKET_D).append("#")
 						.append(RETURN_OK);
 			} else if (dasnPacketType.equalsIgnoreCase(PACKET_SD)) {
-				askPacket.append("#A").append(PACKET_D).append("#")
+				askPacket.append("#A").append(PACKET_SD).append("#")
 						.append(RETURN_OK);
 			} else if (dasnPacketType.equalsIgnoreCase(PACKET_B)) {
 				askPacket.append("#A").append(PACKET_B).append("#");
 			} else {
+				logger.error("Неверный тип пакета: " + dasnPacketType);
 				throw new RuntimeErrorException(new Error("Type Error"),
 						"Неверный тип пакета.");
 			}
@@ -336,22 +377,50 @@ public class ModWialon extends Terminal {
 				}
 			}
 			askPacket.append(messages.length);
-
 		} else if (dasnPacketType.equalsIgnoreCase(PACKET_L)) {
 			// авторизация
 			// navDeviceStatus = 1;
 			mp = PAT_DATA_L.matcher(packetString);
 			if (mp.matches()) {
-				uid = mp.group(1);
-				passwd = mp.group(2);
-				logger.debug("Ид : " + uid + " Пароль : " + passwd);
-				if (!checkIMEI())
+				uid = mp.group(2);
+				passwd = mp.group(3);
+				pSumm = null;
+				if (mp.group(1) != null) {
+					logger.debug("Версия Wialon : " + mp.group(1));
+					ipsVersion = "2.0";
+					pSumm = mp.group(4);
+					checkSum(packetString);
+				} else {
+					ipsVersion = "1.0";
+				}
+				logger.debug("Протокол IPS: " + ipsVersion + " Ид : " + uid
+						+ " Пароль : " + passwd);
+				if (!checkIMEI()) {
+					logger.error("Неверный Ид терминала или пароль.");
 					throw new RuntimeErrorException(new Error("Login Error"),
 							"Неверный Ид терминала или пароль.");
+				}
 			} else {
 				logger.error("Неверные данные авторизации " + packetString);
 			}
 		}
+	}
+
+	private void checkSum(String packet) {
+		if (ipsVersion.equals("2.0")) {
+			Matcher m = PAT_DATA_CRC.matcher(packet);
+			if (m.matches()) {
+				String crc = ModUtils.getCRC16(m.group(2));
+				if (!crc.equalsIgnoreCase(m.group(3))) {
+					logger.fatal("Неверная контрольная сумма : " + crc + " "
+							+ m.group(3));
+				} else {
+					logger.debug("Контрольная сумма : ОК.");
+				}
+			}
+
+		}
+
 	}
 
 	private void parse() {
@@ -381,11 +450,12 @@ public class ModWialon extends Terminal {
 		dasnLongitude = Double.parseDouble(mp.group(index++));
 		dasnLongitude += Double.parseDouble(mp.group(index++)) / 60;
 
-		if ((mp.group(index++).compareTo("W") == 0)) {	
+		if ((mp.group(index++).compareTo("W") == 0)) {
 			if (conf.isIgnoreWestLongitude()) {
 				/*
-				 * В связи с багом в терминале TD Online - для северного полушария
-				 */		
+				 * В связи с багом в терминале TD Online - для северного
+				 * полушария
+				 */
 				dasnLongitude = Math.abs(dasnLongitude);
 			} else {
 				dasnLongitude = -Math.abs(dasnLongitude);
@@ -416,11 +486,12 @@ public class ModWialon extends Terminal {
 			dasnSatUsed = Long.parseLong(tmp);
 			dataSensor.setDasnSatUsed(dasnSatUsed);
 		}
-		if (dasnSatUsed > 3) {
-			dasnStatus = DATA_STATUS.OK;
-		} else {
-			dasnStatus = DATA_STATUS.ERR;
-		}
+		// Валидация на количество спутников будет выполняться в БД
+		// if (dasnSatUsed > 3) {
+		dasnStatus = DATA_STATUS.OK;
+		// } else {
+		// dasnStatus = DATA_STATUS.ERR;
+		// }
 		tmp = mp.group(index++);
 		if ((tmp != null) && !(tmp.equalsIgnoreCase(FIELD_NA))) {
 			dasnHdop = Double.parseDouble(tmp);
@@ -447,19 +518,21 @@ public class ModWialon extends Terminal {
 		index++;
 		// Params
 		tmp = mp.group(index);
+		String key;
 		if (tmp != null) {
 			String[] params = tmp.split(",");
 			for (String param : params) {
 				pm = PAT_PARAMS.matcher(param);
 				if (pm.matches()) {
-					if (PAT_POW.equalsIgnoreCase(pm.group(1))) {
-						dataSensor.setDasnAdc((long) Math.round(Float
-								.parseFloat(pm.group(2)) * ADC_FACT));
-					} else if (PAT_TEMP.equalsIgnoreCase(pm.group(1))) {
+					key = pm.group(1);
+					if (PAT_POW.equalsIgnoreCase(key)) {
+						dataSensor.setDasnAdc((long) Math.round(
+								Float.parseFloat(pm.group(2)) * ADC_FACT));
+					} else if (PAT_TEMP.equalsIgnoreCase(key)) {
 						dasnTemp = Double.parseDouble(pm.group(2));
 						dataSensor.setDasnTemp(dasnTemp);
 					} else {
-						dasnValues.put(pm.group(1), pm.group(2));
+						dasnValues.put(key, pm.group(2));
 					}
 				}
 			}
@@ -472,8 +545,8 @@ public class ModWialon extends Terminal {
 			pgcon.setDataSensorValues(dataSensor);
 			// Ответ блоку
 			try {
-				pgcon.addDataSensor();
 				logger.debug("Writing Database : " + uid);
+				pgcon.addDataSensor();
 			} catch (SQLException e) {
 				logger.warn("Error Writing Database : " + e.getMessage());
 			}
@@ -486,17 +559,18 @@ public class ModWialon extends Terminal {
 	private void sendAck() throws IOException {
 		askPacket.append("\r\n");
 		if (conf.getServerType().equalsIgnoreCase(SERVER.UDP.toString())) {
-			logger.debug("Отправка подтверждения для UDP : "
-					+ askPacket.toString());
+			logger.debug(
+					"Отправка подтверждения для UDP : " + askPacket.toString());
 			askDatagram = new DatagramPacket(askPacket.toString().getBytes(),
 					askPacket.length(), dataPacket.getAddress(),
 					dataPacket.getPort());
 			clientSocket.send(askDatagram);
-		} else if (conf.getServerType().equalsIgnoreCase(SERVER.TCP.toString())) {
-			logger.debug("Отправка подтверждения для TCP : "
-					+ askPacket.toString());
-			oDs.write(askPacket.toString().getBytes(), 0, askPacket.toString()
-					.length());
+		} else if (conf.getServerType()
+				.equalsIgnoreCase(SERVER.TCP.toString())) {
+			logger.debug(
+					"Отправка подтверждения для TCP : " + askPacket.toString());
+			oDs.write(askPacket.toString().getBytes(), 0,
+					askPacket.toString().length());
 			oDs.flush();
 		}
 	}
@@ -536,6 +610,7 @@ public class ModWialon extends Terminal {
 	}
 
 	private boolean checkIMEI() {
+		logger.info("Терминал : " + uid);
 		// TODO проверить на сервере
 		return true;
 	}

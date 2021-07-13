@@ -485,7 +485,7 @@ public class ModSignal extends Terminal {
 		logger.debug("Долгота : " + dasnLongitude);
 		k = 49;
 		dasnSog = Double
-				.valueOf(ModUtils.getIntU32(packet, packetDataSeek + k));
+				.valueOf(Float.intBitsToFloat(ModUtils.getIntU32(packet, packetDataSeek + k)));
 		logger.debug("Скорость : " + dasnSog);
 		k = 53;
 		dasnCourse = Double.valueOf(ModUtils.getIntU16(packet, packetDataSeek
@@ -619,7 +619,7 @@ public class ModSignal extends Terminal {
 		logger.debug("Долгота : " + dasnLongitude);
 		k = 54;
 		dasnSog = Double
-				.valueOf(ModUtils.getIntU32(packet, packetDataSeek + k));
+				.valueOf(Float.intBitsToFloat(ModUtils.getIntU32(packet, packetDataSeek + k)));
 		logger.debug("Скорость : " + dasnSog);
 		k = 58;
 		dasnCourse = Double.valueOf(ModUtils.getIntU16(packet, packetDataSeek
