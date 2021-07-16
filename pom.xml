@@ -1,32 +1,26 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>ru.novaris.novoscan</groupId>
 	<artifactId>trkprd</artifactId>
-	<version>1.5.1</version>
+	<version>1.5.2</version>
 	<name>Novoscan :: Track Proccess Daemon</name>
 	<description>Read data from terminals convert data and write to database</description>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
-		<version.template.file>src/ru/novoscan/trkpd/TrackVersion.java.Template</version.template.file>
-		<version.file>src/ru/novoscan/trkpd/TrackVersion.java</version.file>
+		<version.template.file>src/main/java/ru/novoscan/trkpd/TrackVersion.java.Template</version.template.file>
+		<version.file>src/main/java/ru/novoscan/trkpd/TrackVersion.java</version.file>
+		<junit.version>3.8.1</junit.version>
+		<log4j.version>2.5</log4j.version>
 	</properties>
 	<build>
-		<sourceDirectory>src</sourceDirectory>
-		<resources>
-			<resource>
-				<directory>src</directory>
-				<excludes>
-					<exclude>**/*.java</exclude>
-				</excludes>
-			</resource>
-		</resources>
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.1</version>
+				<version>3.8.1</version>
 				<configuration>
 					<source />
 					<target />
@@ -103,14 +97,19 @@
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
-				<groupId>log4j</groupId>
-				<artifactId>log4j</artifactId>
-				<version>1.2.17</version>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-api</artifactId>
+				<version>${log4j.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-core</artifactId>
+				<version>${log4j.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.postgresql</groupId>
 				<artifactId>postgresql</artifactId>
-				<version>9.3-1103-jdbc3</version>
+				<version>42.2.23</version>
 			</dependency>
 			<dependency>
 				<groupId>org.apache.commons</groupId>
@@ -121,8 +120,12 @@
 	</dependencyManagement>
 	<dependencies>
 		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.postgresql</groupId>
