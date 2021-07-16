@@ -14,7 +14,7 @@
 		<version.template.file>src/main/java/ru/novoscan/trkpd/TrackVersion.java.Template</version.template.file>
 		<version.file>src/main/java/ru/novoscan/trkpd/TrackVersion.java</version.file>
 		<junit.version>3.8.1</junit.version>
-		<log4j.version>2.5</log4j.version>
+		<log4j.version>2.13.2</log4j.version>
 	</properties>
 	<build>
 		<plugins>
