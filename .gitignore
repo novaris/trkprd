@@ -8,6 +8,7 @@
 #compilation bin
 bin/
 target/
+/target/
 
 #svn files
 .svn/
