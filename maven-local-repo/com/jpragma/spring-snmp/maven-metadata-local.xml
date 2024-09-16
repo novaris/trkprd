@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>com.jpragma</groupId>
+  <artifactId>spring-snmp</artifactId>
+  <versioning>
+    <release>alpha1</release>
+    <versions>
+      <version>alpha1</version>
+    </versions>
+    <lastUpdated>20150517115541</lastUpdated>
+  </versioning>
+</metadata>

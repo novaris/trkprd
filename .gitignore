@@ -4,11 +4,10 @@
 # Package Files #
 *.jar
 *.war
-.settings
 
 #compilation bin
-bin
-target
+bin/
+target/
 
 #svn files
 .svn/
@@ -17,3 +16,5 @@ svn-commit.tmp
 # java local class path 
 .classpath
 .settings/org.eclipse.core.resources.prefs
+target/maven-status/maven-compiler-plugin/compile/default-compile/
+/libs/
